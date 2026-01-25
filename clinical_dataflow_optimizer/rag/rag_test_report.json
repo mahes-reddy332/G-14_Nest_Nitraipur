@@ -1,0 +1,163 @@
+{
+  "timestamp": 1769109840.6157773,
+  "test_results": {
+    "initialization": true,
+    "ingestion": true,
+    "queries": [
+      {
+        "test_id": 1,
+        "query": "How many patients are enrolled in Study 1?",
+        "description": "Basic factual query",
+        "expected_type": "factual",
+        "success": false,
+        "processing_time": 0.00885152816772461,
+        "response_length": 65,
+        "has_agent_insights": false,
+        "has_recommendations": false,
+        "routing_strategy": "simple",
+        "actual_query_type": null
+      },
+      {
+        "test_id": 2,
+        "query": "What are the common adverse events across all studies?",
+        "description": "Analytical query requiring pattern analysis",
+        "expected_type": "analytical",
+        "success": false,
+        "processing_time": 0.01556396484375,
+        "response_length": 77,
+        "has_agent_insights": false,
+        "has_recommendations": false,
+        "routing_strategy": "simple",
+        "actual_query_type": null
+      },
+      {
+        "test_id": 3,
+        "query": "Why are there delays in patient visits for Study 5?",
+        "description": "Diagnostic query requiring root cause analysis",
+        "expected_type": "diagnostic",
+        "success": false,
+        "processing_time": 0.007339000701904297,
+        "response_length": 74,
+        "has_agent_insights": false,
+        "has_recommendations": false,
+        "routing_strategy": "simple",
+        "actual_query_type": null
+      },
+      {
+        "test_id": 4,
+        "query": "What actions should we take to improve data quality?",
+        "description": "Prescriptive query requiring agent recommendations",
+        "expected_type": "prescriptive",
+        "success": false,
+        "processing_time": 0.006428718566894531,
+        "response_length": 77,
+        "has_agent_insights": false,
+        "has_recommendations": false,
+        "routing_strategy": "agent_direct",
+        "actual_query_type": null
+      },
+      {
+        "test_id": 5,
+        "query": "Which patients are at risk of dropping out?",
+        "description": "Predictive query requiring risk assessment",
+        "expected_type": "predictive",
+        "success": false,
+        "processing_time": 0.007596492767333984,
+        "response_length": 66,
+        "has_agent_insights": false,
+        "has_recommendations": false,
+        "routing_strategy": "simple",
+        "actual_query_type": null
+      }
+    ],
+    "performance": {
+      "initialization_time": 148.99602031707764,
+      "concurrent_queries": [
+        {
+          "query": "How many patients in Study 1?",
+          "time": 0.0062792301177978516,
+          "success": true
+        },
+        {
+          "query": "What are the SAE rates?",
+          "time": 0.006337404251098633,
+          "success": true
+        },
+        {
+          "query": "Show visit completion trends",
+          "time": 0.007230281829833984,
+          "success": true
+        },
+        {
+          "query": "Identify data quality issues",
+          "time": 0.006374835968017578,
+          "success": true
+        },
+        {
+          "query": "Recommend process improvements",
+          "time": 0.007047176361083984,
+          "success": true
+        }
+      ],
+      "memory_usage": "N/A",
+      "cache_effectiveness": {},
+      "avg_query_time": 0.006653785705566406,
+      "min_query_time": 0.0062792301177978516,
+      "max_query_time": 0.007230281829833984
+    },
+    "errors": [],
+    "system_status": {
+      "initialized": true,
+      "ingestion_timestamp": "2026-01-23T00:54:00.080287",
+      "graph_statistics": {
+        "nodes": 18234,
+        "edges": 0,
+        "node_types": {
+          "Unknown": 18234
+        },
+        "edge_types": {}
+      },
+      "performance_metrics": {
+        "total_queries_processed": 10,
+        "average_processing_time": 0.0512
+      }
+    }
+  },
+  "agent_demonstration": [
+    {
+      "query": "What should we do about the high SAE rate in Study 3?",
+      "agent_insights_count": 0,
+      "recommendations_count": 0,
+      "agents_consulted": [],
+      "routing_strategy": "agent_direct"
+    },
+    {
+      "query": "How can we improve patient retention across studies?",
+      "agent_insights_count": 0,
+      "recommendations_count": 0,
+      "agents_consulted": [],
+      "routing_strategy": "simple"
+    },
+    {
+      "query": "Why are coding queries taking so long to resolve?",
+      "agent_insights_count": 0,
+      "recommendations_count": 0,
+      "agents_consulted": [],
+      "routing_strategy": "agent_direct"
+    },
+    {
+      "query": "What actions are needed to ensure data quality standards?",
+      "agent_insights_count": 0,
+      "recommendations_count": 0,
+      "agents_consulted": [],
+      "routing_strategy": "agent_direct"
+    }
+  ],
+  "summary": {
+    "total_queries": 5,
+    "successful_queries": 0,
+    "average_query_time": 0.006653785705566406,
+    "total_agent_insights": 0,
+    "total_recommendations": 0
+  }
+}

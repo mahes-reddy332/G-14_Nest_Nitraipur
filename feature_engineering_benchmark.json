@@ -1,0 +1,210 @@
+{
+  "timestamp": "2026-01-23T13:34:32.370719",
+  "results": {
+    "feature_calculation": {
+      "operation": "feature_calculation",
+      "num_patients": 100,
+      "total_time_seconds": 0.6568484306335449,
+      "avg_time_per_patient_ms": 6.568484306335449,
+      "memory_peak_mb": 0.4154186248779297,
+      "cpu_avg_percent": 23.075,
+      "twins_created": 100,
+      "site_features_calculated": 0
+    },
+    "twin_serialization": {
+      "operation": "twin_serialization",
+      "num_twins": 100,
+      "total_time_seconds": 0.022986888885498047,
+      "avg_time_per_twin_ms": 0.22986888885498047,
+      "serialization_time_seconds": 0.011493444442749023,
+      "deserialization_time_seconds": 0.011493444442749023,
+      "memory_peak_mb": 0.4739065170288086,
+      "avg_payload_size_kb": 1.42837890625
+    },
+    "real_time_updates": {
+      "operation": "real_time_updates",
+      "num_updates": 1000,
+      "total_time_seconds": 0.005713939666748047,
+      "avg_time_per_update_ms": 0.005713939666748047,
+      "updates_per_second": 175010.5983476592,
+      "memory_peak_mb": 0.4739065170288086
+    }
+  },
+  "memory_snapshots": [
+    {
+      "timestamp": 0.011444330215454102,
+      "memory_current_mb": 0.08680248260498047,
+      "memory_peak_mb": 0.09232711791992188,
+      "cpu_percent": 0.0,
+      "label": "data_creation"
+    },
+    {
+      "timestamp": 0.011863946914672852,
+      "memory_current_mb": 0.08794689178466797,
+      "memory_peak_mb": 0.09232711791992188,
+      "cpu_percent": 0.0,
+      "label": "builder_init"
+    },
+    {
+      "timestamp": 0.6552233695983887,
+      "memory_current_mb": 0.39938831329345703,
+      "memory_peak_mb": 0.4154186248779297,
+      "cpu_percent": 92.3,
+      "label": "twin_creation_complete"
+    },
+    {
+      "timestamp": 0.6557033061981201,
+      "memory_current_mb": 0.39938831329345703,
+      "memory_peak_mb": 0.4154186248779297,
+      "cpu_percent": 0.0,
+      "label": "site_features_calculated"
+    },
+    {
+      "timestamp": 0.0022995471954345703,
+      "memory_current_mb": 0.054121971130371094,
+      "memory_peak_mb": 0.054121971130371094,
+      "cpu_percent": 0.0,
+      "label": "serialized_25_twins"
+    },
+    {
+      "timestamp": 0.005656719207763672,
+      "memory_current_mb": 0.11791801452636719,
+      "memory_peak_mb": 0.11791801452636719,
+      "cpu_percent": 465.2,
+      "label": "serialized_50_twins"
+    },
+    {
+      "timestamp": 0.008211851119995117,
+      "memory_current_mb": 0.18207263946533203,
+      "memory_peak_mb": 0.18207263946533203,
+      "cpu_percent": 0.0,
+      "label": "serialized_75_twins"
+    },
+    {
+      "timestamp": 0.010799407958984375,
+      "memory_current_mb": 0.24715137481689453,
+      "memory_peak_mb": 0.24715137481689453,
+      "cpu_percent": 0.0,
+      "label": "serialized_100_twins"
+    },
+    {
+      "timestamp": 0.011080741882324219,
+      "memory_current_mb": 0.24762439727783203,
+      "memory_peak_mb": 0.24809932708740234,
+      "cpu_percent": 0.0,
+      "label": "serialization_complete"
+    },
+    {
+      "timestamp": 0.015253305435180664,
+      "memory_current_mb": 0.3041715621948242,
+      "memory_peak_mb": 0.3052034378051758,
+      "cpu_percent": 0.0,
+      "label": "deserialized_25_twins"
+    },
+    {
+      "timestamp": 0.017298460006713867,
+      "memory_current_mb": 0.36034488677978516,
+      "memory_peak_mb": 0.3614377975463867,
+      "cpu_percent": 0.0,
+      "label": "deserialized_50_twins"
+    },
+    {
+      "timestamp": 0.01971578598022461,
+      "memory_current_mb": 0.4165487289428711,
+      "memory_peak_mb": 0.41764163970947266,
+      "cpu_percent": 644.1,
+      "label": "deserialized_75_twins"
+    },
+    {
+      "timestamp": 0.021379947662353516,
+      "memory_current_mb": 0.47281455993652344,
+      "memory_peak_mb": 0.4739065170288086,
+      "cpu_percent": 0.0,
+      "label": "deserialized_100_twins"
+    },
+    {
+      "timestamp": 0.021709203720092773,
+      "memory_current_mb": 0.4729747772216797,
+      "memory_peak_mb": 0.4739065170288086,
+      "cpu_percent": 0.0,
+      "label": "deserialization_complete"
+    },
+    {
+      "timestamp": 0.00025391578674316406,
+      "memory_current_mb": 0.0007791519165039062,
+      "memory_peak_mb": 0.0016508102416992188,
+      "cpu_percent": 0.0,
+      "label": "update_0"
+    },
+    {
+      "timestamp": 0.0005993843078613281,
+      "memory_current_mb": 0.000904083251953125,
+      "memory_peak_mb": 0.0016508102416992188,
+      "cpu_percent": 0.0,
+      "label": "update_100"
+    },
+    {
+      "timestamp": 0.0009937286376953125,
+      "memory_current_mb": 0.0009527206420898438,
+      "memory_peak_mb": 0.0016508102416992188,
+      "cpu_percent": 4029.1,
+      "label": "update_200"
+    },
+    {
+      "timestamp": 0.0014522075653076172,
+      "memory_current_mb": 0.0013980865478515625,
+      "memory_peak_mb": 0.0017480850219726562,
+      "cpu_percent": 0.0,
+      "label": "update_300"
+    },
+    {
+      "timestamp": 0.0018630027770996094,
+      "memory_current_mb": 0.0014467239379882812,
+      "memory_peak_mb": 0.001827239990234375,
+      "cpu_percent": 0.0,
+      "label": "update_400"
+    },
+    {
+      "timestamp": 0.0022819042205810547,
+      "memory_current_mb": 0.001495361328125,
+      "memory_peak_mb": 0.0018758773803710938,
+      "cpu_percent": 0.0,
+      "label": "update_500"
+    },
+    {
+      "timestamp": 0.002896547317504883,
+      "memory_current_mb": 0.0015439987182617188,
+      "memory_peak_mb": 0.0019245147705078125,
+      "cpu_percent": 0.0,
+      "label": "update_600"
+    },
+    {
+      "timestamp": 0.0033032894134521484,
+      "memory_current_mb": 0.0015926361083984375,
+      "memory_peak_mb": 0.0019731521606445312,
+      "cpu_percent": 0.0,
+      "label": "update_700"
+    },
+    {
+      "timestamp": 0.003887653350830078,
+      "memory_current_mb": 0.0016412734985351562,
+      "memory_peak_mb": 0.00202178955078125,
+      "cpu_percent": 0.0,
+      "label": "update_800"
+    },
+    {
+      "timestamp": 0.004492998123168945,
+      "memory_current_mb": 0.001689910888671875,
+      "memory_peak_mb": 0.0020704269409179688,
+      "cpu_percent": 0.0,
+      "label": "update_900"
+    },
+    {
+      "timestamp": 0.005280256271362305,
+      "memory_current_mb": 0.001659393310546875,
+      "memory_peak_mb": 0.0021190643310546875,
+      "cpu_percent": 0.0,
+      "label": "updates_complete"
+    }
+  ]
+}

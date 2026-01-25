@@ -1,0 +1,35 @@
+# FastAPI Backend Requirements
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# Async support
+aiofiles>=23.0.0
+websockets>=11.0
+
+# Data processing (existing dependencies)
+pandas>=2.0.0
+numpy>=1.24.0
+networkx>=3.0
+
+# CORS and HTTP
+python-multipart>=0.0.6
+httpx>=0.24.0
+
+# AI and LLM dependencies
+langchain>=0.1.0
+langchain-openai>=0.1.0
+llama-index>=0.9.0
+openai>=1.0.0
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+httpx>=0.24.0  # For async HTTP testing
+faker>=20.0.0  # For generating test data
+
+# Optional: for production
+gunicorn>=21.0.0

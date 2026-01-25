@@ -1,0 +1,8 @@
+export { default as Dashboard } from './Dashboard'
+export { default as Studies } from './Studies'
+export { default as Patients } from './Patients'
+export { default as Sites } from './Sites'
+export { default as Alerts } from './Alerts'
+export { default as Agents } from './Agents'
+export { default as Conversational } from './Conversational'
+export { default as Reports } from './Reports'
