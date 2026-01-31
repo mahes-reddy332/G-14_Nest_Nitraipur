@@ -132,7 +132,17 @@ async def health_check():
     try:
         # Add basic checks
         health_checker.register_check("api", lambda: True)
-        health_checker.register_check("database", lambda: True)  # Placeholder
+        def _check_data_service() -> bool:
+            try:
+                from api.config import get_service
+                data_service = get_service("data_service")
+                initialized = getattr(data_service, "_initialized", False)
+                studies = getattr(data_service, "_cache", {}).get("studies", {})
+                return bool(initialized and studies)
+            except Exception:
+                return False
+
+        health_checker.register_check("database", _check_data_service)
     except Exception:
         pass  # Already registered
     

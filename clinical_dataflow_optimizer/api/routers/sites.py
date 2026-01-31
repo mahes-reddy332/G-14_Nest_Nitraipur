@@ -116,9 +116,8 @@ async def get_sites(
 ):
     """Get list of sites with filters"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         
         filters = {
             "study_id": study_id,
@@ -144,9 +143,8 @@ async def get_high_risk_sites(
 ):
     """Get sites with high risk indicators"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         sites = await service.get_high_risk_sites(study_id, limit)
         return [SiteSummary(**s) for s in sites]
     except Exception as e:
@@ -162,9 +160,8 @@ async def get_slow_resolution_sites(
 ):
     """Get sites with slow query resolution velocity"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         sites = await service.get_slow_resolution_sites(study_id, threshold_days, limit)
         return [SiteSummary(**s) for s in sites]
     except Exception as e:
@@ -179,9 +176,8 @@ async def get_site_comparison(
 ):
     """Get site comparison/ranking within a study"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         comparison = await service.get_site_comparison(study_id, metric)
         return [SiteComparison(**c) for c in comparison]
     except Exception as e:
@@ -193,9 +189,8 @@ async def get_site_comparison(
 async def get_site_detail(site_id: str = Path(..., description="Site ID")):
     """Get detailed information for a specific site"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         site = await service.get_site_detail(site_id)
         if not site:
             raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
@@ -211,11 +206,8 @@ async def get_site_detail(site_id: str = Path(..., description="Site ID")):
 async def get_site_performance(site_id: str = Path(..., description="Site ID")):
     """Get performance metrics for a site"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         performance = await service.get_site_performance(site_id)
         return SitePerformance(**performance)
     except Exception as e:
@@ -230,9 +222,8 @@ async def get_site_patients(
 ):
     """Get patients for a specific site"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         patients = await service.get_site_patients(site_id, status)
         return patients
     except Exception as e:
@@ -247,9 +238,8 @@ async def get_site_queries(
 ):
     """Get queries for a specific site"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         queries = await service.get_site_queries(site_id, status)
         return {
             "success": True,
@@ -269,9 +259,8 @@ async def get_cra_activity(
 ):
     """Get CRA activity log for a site"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         activity = await service.get_cra_activity(site_id, days)
         return [CRAActivity(**a) for a in activity]
     except Exception as e:
@@ -287,11 +276,8 @@ async def get_site_trends(
 ):
     """Get trend data for site metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         
         metric_list = [m.strip() for m in metrics.split(",")]
         trends = await service.get_site_trends(site_id, metric_list, days)
@@ -312,9 +298,8 @@ async def get_site_trends(
 async def get_site_issues(site_id: str = Path(..., description="Site ID")):
     """Get current issues and blockers for a site"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         issues = await service.get_site_issues(site_id)
         return {
             "success": True,

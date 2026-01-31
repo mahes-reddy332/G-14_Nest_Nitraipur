@@ -9,9 +9,11 @@ import {
   CloudSyncOutlined,
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { studiesApi, alertsApi } from '../../api'
 import { useStore } from '../../store'
-import { useWebSocket, type ConnectionState } from '../../hooks/useWebSocket'
+import type { ConnectionState } from '../../types'
 import type { Study } from '../../types'
 
 const { Header: AntHeader } = Layout
@@ -37,11 +39,29 @@ function ConnectionStatus({ connectionState, isConnected }: { connectionState: C
       text: 'Starting...',
       tooltip: 'Waiting for backend services to initialize'
     },
+    'retrying': {
+      color: '#faad14',
+      icon: <CloudSyncOutlined />,
+      text: 'Retrying...',
+      tooltip: 'Retrying connection with backoff'
+    },
+    'failed': {
+      color: '#ff4d4f',
+      icon: <CloseCircleOutlined />,
+      text: 'Failed',
+      tooltip: 'Connection failed. Please retry.'
+    },
     'disconnected': {
       color: '#ff4d4f',
       icon: <CloseCircleOutlined />,
       text: 'Disconnected',
       tooltip: 'Connection lost. Reconnecting automatically...'
+    },
+    'idle': {
+      color: '#8c8c8c',
+      icon: <CloseCircleOutlined />,
+      text: 'Idle',
+      tooltip: 'Connection idle'
     }
   }
 
@@ -62,10 +82,17 @@ function ConnectionStatus({ connectionState, isConnected }: { connectionState: C
 }
 
 export default function Header() {
-  const { isConnected, selectedStudyId, setSelectedStudyId, unreadNotifications, resetNotifications } =
+  const navigate = useNavigate()
+  const {
+    isConnected,
+    selectedStudyId,
+    setSelectedStudyId,
+    unreadNotifications,
+    resetNotifications,
+    connectionState,
+    requestReconnect,
+  } =
     useStore()
-  
-  const { connectionState, forceReconnect } = useWebSocket()
 
   // Fetch studies for selector
   const { data: studies = [] } = useQuery({
@@ -80,27 +107,48 @@ export default function Header() {
     refetchInterval: 30000,
   })
 
-  const studyOptions = [
-    { value: '', label: 'All Studies' },
-    ...studies.map((s: Study) => ({ value: s.study_id, label: s.name || s.study_id })),
-  ]
+  const studyOptions = useMemo(
+    () => [
+      { value: '', label: 'All Studies' },
+      ...studies.map((s: Study) => ({ value: s.study_id, label: s.name || s.study_id })),
+    ],
+    [studies]
+  )
 
-  const userMenuItems = [
-    { key: 'profile', label: 'Profile' },
-    { key: 'settings', label: 'Settings' },
-    { type: 'divider' as const },
-    { key: 'logout', label: 'Logout' },
-  ]
+  const userMenuItems = useMemo(
+    () => [
+      { key: 'profile', label: 'Profile' },
+      { key: 'settings', label: 'Settings' },
+      { type: 'divider' as const },
+      { key: 'logout', label: 'Logout' },
+    ],
+    []
+  )
+
+  const handleMenuClick = ({ key }: { key: string }) => {
+    switch (key) {
+      case 'profile':
+        navigate('/profile')
+        break
+      case 'settings':
+        navigate('/settings')
+        break
+      case 'logout':
+        // Clear token logic if implemented, or just redirect
+        // localStorage.removeItem('token')
+        navigate('/login')
+        break
+    }
+  }
 
   return (
     <AntHeader
       style={{
         padding: '0 24px',
-        background: '#fff',
+        background: 'transparent',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+        justifyContent: 'flex-end', // Move everything to the right
       }}
     >
       <Space size="large">
@@ -120,7 +168,8 @@ export default function Header() {
           <Button
             type="text"
             icon={<SyncOutlined />}
-            onClick={forceReconnect}
+            onClick={requestReconnect}
+            aria-label="Reconnect real-time data"
           >
             Reconnect
           </Button>
@@ -134,12 +183,16 @@ export default function Header() {
             <Button
               type="text"
               icon={<BellOutlined style={{ fontSize: 20 }} />}
-              onClick={resetNotifications}
+              onClick={() => {
+                resetNotifications()
+                navigate('/alerts')
+              }}
+              aria-label="Open notifications"
             />
           </Badge>
         </Badge>
 
-        <Dropdown menu={{ items: userMenuItems }}>
+        <Dropdown menu={{ items: userMenuItems, onClick: handleMenuClick }}>
           <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer' }} />
         </Dropdown>
       </Space>

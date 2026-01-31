@@ -1,0 +1,40 @@
+{
+  "updated_at": "2026-01-25T06:45:03.020759+00:00",
+  "requests": [
+    {
+      "request_id": "HITL-20260125121503-0002",
+      "audit_entry_id": "",
+      "agent_id": "REX",
+      "agent_name": "Rex Agent",
+      "action_type": "RECONCILIATION_OVERRIDE",
+      "action_description": "Override reconciliation status",
+      "study_id": "Study_1",
+      "subject_id": "SUB-002",
+      "site_id": "",
+      "form_id": "",
+      "proposed_action": "MARK_RECONCILED",
+      "current_value": null,
+      "proposed_value": null,
+      "justification": "Manual verification completed",
+      "risk_level": "HIGH",
+      "risk_assessment": "",
+      "regulatory_reference": "",
+      "created_at": "2026-01-25T06:45:03.020734+00:00",
+      "expires_at": "2026-01-26T06:45:03.020699+00:00",
+      "escalation_at": "2026-01-25T10:45:03.020699+00:00",
+      "status": "PENDING",
+      "required_approver_roles": [
+        "DATA_MANAGER",
+        "STUDY_COORDINATOR",
+        "MEDICAL_MONITOR",
+        "SYSTEM_ADMINISTRATOR"
+      ],
+      "approved_by_id": null,
+      "approved_by_name": null,
+      "approved_by_role": null,
+      "approval_timestamp": null,
+      "approval_comments": "",
+      "_action_callback": null
+    }
+  ]
+}

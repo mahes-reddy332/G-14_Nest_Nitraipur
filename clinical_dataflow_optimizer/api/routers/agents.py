@@ -98,9 +98,8 @@ class ExplainabilityDetail(BaseModel):
 async def get_agent_status():
     """Get status of all AI agents"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
-        await service.initialize()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         statuses = await service.get_agent_status()
         return {k: AgentStatus(**v) for k, v in statuses.items()}
     except Exception as e:
@@ -120,10 +119,10 @@ async def get_insights(
 ):
     """Get AI-generated insights"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        from api.services.agent_service import AgentServiceUnavailableError
+        service = await get_initialized_agent_service()
         
-        await service.initialize()
         insights = await service.get_agent_insights(
             agent_type=agent_type.value if agent_type else None,
             priority=severity.value if severity else None,
@@ -134,6 +133,8 @@ async def get_insights(
             insights = [i for i in insights if i.get('category') == category.value]
 
         return [AgentInsight(**i) for i in insights]
+    except AgentServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting insights: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -149,16 +150,18 @@ async def get_recommendations(
 ):
     """Get AI-generated recommendations"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        from api.services.agent_service import AgentServiceUnavailableError
+        service = await get_initialized_agent_service()
         
-        await service.initialize()
         recommendations = await service.get_recommendations(
             category=None,
             study_id=study_id,
             limit=limit
         )
         return [AgentRecommendation(**r) for r in recommendations]
+    except AgentServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting recommendations: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -168,9 +171,8 @@ async def get_recommendations(
 async def explain_insight(insight_id: str):
     """Get detailed explainability for an insight"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
-        await service.initialize()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         explanation = await service.get_explainability(insight_id)
         return [ExplainabilityDetail(**e) for e in explanation] if explanation else []
     except Exception as e:
@@ -185,14 +187,17 @@ async def get_sae_discrepancies(
 ):
     """Get SAE reconciliation discrepancies identified by agent"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        from api.services.agent_service import AgentServiceUnavailableError
+        service = await get_initialized_agent_service()
         discrepancies = await service.get_reconciliation_discrepancies(study_id, site_id)
         return {
             "success": True,
             "discrepancies": discrepancies,
             "total": len(discrepancies)
         }
+    except AgentServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting discrepancies: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -205,14 +210,17 @@ async def get_coding_issues(
 ):
     """Get coding issues identified by agent"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        from api.services.agent_service import AgentServiceUnavailableError
+        service = await get_initialized_agent_service()
         issues = await service.get_coding_issues(study_id, coding_type)
         return {
             "success": True,
             "issues": issues,
             "total": len(issues)
         }
+    except AgentServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting coding issues: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -225,14 +233,17 @@ async def get_site_flags(
 ):
     """Get site flags and issues from liaison agent"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        from api.services.agent_service import AgentServiceUnavailableError
+        service = await get_initialized_agent_service()
         flags = await service.get_site_flags(study_id, site_id)
         return {
             "success": True,
             "flags": flags,
             "total": len(flags)
         }
+    except AgentServiceUnavailableError as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting site flags: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -245,8 +256,8 @@ async def get_quality_assessment(
 ):
     """Get quality assessment from supervisor agent"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         assessment = await service.get_quality_assessment(study_id, level)
         return {
             "success": True,
@@ -266,8 +277,8 @@ async def trigger_agent_analysis(
 ):
     """Manually trigger an agent analysis"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         result = await service.trigger_analysis(agent_type.value, study_id, site_id)
         return {
             "success": True,
@@ -285,8 +296,8 @@ async def trigger_agent_analysis(
 async def get_cross_study_patterns():
     """Get patterns identified across studies by supervisor"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         patterns = await service.get_cross_study_patterns()
         return {
             "success": True,
@@ -305,8 +316,8 @@ async def get_protocol_deviations(
 ):
     """Get potential protocol deviations inferred by agents"""
     try:
-        from api.services.agent_service import AgentService
-        service = AgentService()
+        from api.config import get_initialized_agent_service
+        service = await get_initialized_agent_service()
         deviations = await service.get_protocol_deviations(study_id, site_id)
         return {
             "success": True,

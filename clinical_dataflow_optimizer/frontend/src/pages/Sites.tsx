@@ -136,6 +136,8 @@ export default function Sites() {
           percent={Math.round(score || 0)}
           size="small"
           status={score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception'}
+          showInfo
+          format={(percent) => `${percent}%`}
         />
       ),
       sorter: (a, b) => (a.dqi_score || 0) - (b.dqi_score || 0),

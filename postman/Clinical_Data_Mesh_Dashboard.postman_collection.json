@@ -1,0 +1,294 @@
+{
+  "info": {
+    "name": "Clinical Data Mesh - Dashboard API",
+    "description": "Automated API tests for dashboard, metrics, studies, patients, sites, alerts, agents, NLQ, narratives, reports.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health & Readiness",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('status');",
+                  "pm.expect(body).to.have.property('services');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/ready",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200 or 503', () => [200,503].includes(pm.response.code));",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('is_ready');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET /api/dashboard/initial-load",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": "{{baseUrl}}/api/dashboard/initial-load"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('summary');",
+                  "pm.expect(body.summary).to.have.property('total_patients');",
+                  "pm.expect(body.summary.total_patients).to.be.a('number');",
+                  "pm.expect(body.summary.overall_dqi).to.be.a('number');",
+                  "pm.expect(body.summary.open_queries).to.be.a('number');",
+                  "pm.expect(body.summary.uncoded_terms).to.be.a('number');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/dashboard/summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "url": "{{baseUrl}}/api/dashboard/summary"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200 or 401/503', () => [200,401,503].includes(pm.response.code));",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.property('total_patients');",
+                  "  pm.expect(body.total_patients).to.be.a('number');",
+                  "  pm.expect(body).to.have.property('overall_dqi');",
+                  "  pm.expect(body.overall_dqi).to.be.a('number');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Metrics",
+      "item": [
+        {
+          "name": "GET /api/metrics/cleanliness",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/cleanliness"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('overall_rate');",
+                  "pm.expect(body.overall_rate).to.be.a('number');",
+                  "pm.expect(body).to.have.property('clean_patients');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/metrics/queries",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/queries"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('total_queries');",
+                  "pm.expect(body.total_queries).to.be.a('number');",
+                  "pm.expect(body).to.have.property('open_queries');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/metrics/dqi",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/dqi"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('overall_dqi');",
+                  "pm.expect(body.overall_dqi).to.be.a('number');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/metrics/saes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/saes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('total_saes');",
+                  "pm.expect(body.total_saes).to.be.a('number');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/metrics/coding",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/coding"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('total_terms');",
+                  "pm.expect(body.total_terms).to.be.a('number');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/metrics/velocity",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/metrics/velocity"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status 200', () => pm.response.code === 200);",
+                  "const body = pm.response.json();",
+                  "pm.expect(body).to.have.property('query_resolution_velocity');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Core Entities",
+      "item": [
+        {"name": "GET /api/studies/", "request": {"method": "GET", "url": "{{baseUrl}}/api/studies/"}},
+        {"name": "GET /api/patients/", "request": {"method": "GET", "url": "{{baseUrl}}/api/patients/"}},
+        {"name": "GET /api/sites/", "request": {"method": "GET", "url": "{{baseUrl}}/api/sites/"}}
+      ]
+    },
+    {
+      "name": "Alerts & Agents",
+      "item": [
+        {"name": "GET /api/alerts/summary", "request": {"method": "GET", "url": "{{baseUrl}}/api/alerts/summary"}},
+        {"name": "GET /api/agents/status", "request": {"method": "GET", "url": "{{baseUrl}}/api/agents/status"}}
+      ]
+    },
+    {
+      "name": "NLQ & Narratives",
+      "item": [
+        {
+          "name": "POST /api/nlq/query",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"query\": \"Show query backlog\", \"study_id\": \"Study_1\"}"},
+            "url": "{{baseUrl}}/api/nlq/query"
+          }
+        },
+        {
+          "name": "POST /api/narratives/patient-narrative",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\"subject_id\": \"SUBJ-001\", \"study_id\": \"Study_1\"}"},
+            "url": "{{baseUrl}}/api/narratives/patient-narrative"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {"name": "GET /api/reports/", "request": {"method": "GET", "url": "{{baseUrl}}/api/reports/"}}
+      ]
+    }
+  ]
+}

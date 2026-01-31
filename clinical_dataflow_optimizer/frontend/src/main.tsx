@@ -1,9 +1,11 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ConfigProvider } from 'antd'
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import { NotificationProvider } from './contexts'
 import './index.css'
 import './styles/clinical-design-system.css'
 
@@ -64,10 +66,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={clinicalTheme}>
-        <ErrorBoundary>
-          <App />
-        </ErrorBoundary>
+        <NotificationProvider>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </NotificationProvider>
       </ConfigProvider>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   </React.StrictMode>,
 )

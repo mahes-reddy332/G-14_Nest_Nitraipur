@@ -210,7 +210,9 @@ class QueryParser:
         ],
         QueryIntent.COMPLIANCE_CHECK: [
             r'\bcompliance\b', r'\bprotocol\s+deviation\b', r'\boverdue\b',
-            r'\bviolation\b', r'\bnon.?conform\b'
+            r'\bviolation\b', r'\bnon.?conform\b',
+            r'\bclean\s+enough\b', r'\binterim\s+analysis\b', r'\bready\s+for\s+analysis\b',
+            r'\bsnapshot\s+clean\b', r'\bdata\s+lock\b', r'\banalysis\s+ready\b'
         ],
         QueryIntent.FORECAST: [
             r'\bpredict\b', r'\bforecast\b', r'\bestimat(e|ion)\b', r'\bproject(ed|ion)?\b',
@@ -279,7 +281,9 @@ class QueryParser:
             r'\bssm\b', r'\bsite\s+status\b', r'\bsite\s+metric\b', r'\bred\s+sites?\b'
         ],
         MetricType.CLEAN_PATIENT_RATE: [
-            r'\bclean\s+patient\b', r'\bclean\s+rate\b', r'\bclean\s+subject\b'
+            r'\bclean\s+patient\b', r'\bclean\s+rate\b', r'\bclean\s+subject\b',
+            r'\bclean\s+status\b', r'\bclean\s+enough\b', r'\bsnapshot\s+clean\b',
+            r'\bclean\s+for\s+(interim\s+)?analysis\b', r'\bdata\s+cleanliness\b'
         ],
         MetricType.SAE_COUNT: [
             r'\bsae\s+count\b', r'\bsaes?\b', r'\bserious\s+adverse\b', r'\bsafety\s+events?\b'

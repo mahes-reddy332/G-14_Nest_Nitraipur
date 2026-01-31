@@ -8,10 +8,31 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 import logging
+from functools import lru_cache
+import time
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# ============== In-memory Cache ==============
+_metrics_cache: Dict[str, Any] = {}
+_cache_timestamps: Dict[str, float] = {}
+CACHE_TTL_SECONDS = 60  # 1 minute cache
+
+
+def get_cached(key: str) -> Optional[Any]:
+    """Get cached value if not expired"""
+    if key in _metrics_cache:
+        if time.time() - _cache_timestamps.get(key, 0) < CACHE_TTL_SECONDS:
+            return _metrics_cache[key]
+    return None
+
+
+def set_cached(key: str, value: Any):
+    """Set cached value with timestamp"""
+    _metrics_cache[key] = value
+    _cache_timestamps[key] = time.time()
 
 
 # ============== Pydantic Models ==============
@@ -71,10 +92,11 @@ class CodingMetrics(BaseModel):
 class OperationalVelocity(BaseModel):
     enrollment_velocity: float  # patients per week
     query_resolution_velocity: float  # queries per day
+    resolutions_per_day: float = Field(default=0.0) # Added field
     form_completion_velocity: float  # forms per day
     sae_processing_velocity: float  # saes per day
     overall_velocity_index: float
-    trend: List[float]
+    trend: List[Dict[str, Any]] # Changed to list of dicts for frontend compatibility
 
 
 class KPITile(BaseModel):
@@ -98,13 +120,17 @@ async def get_kpi_tiles(
 ):
     """Get KPI tiles for dashboard display"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"kpi_tiles:{study_id}:{site_id}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         tiles = await service.get_kpi_tiles(study_id, site_id)
-        return [KPITile(**t) for t in tiles]
+        result = [KPITile(**t) for t in tiles]
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting KPI tiles: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -118,13 +144,17 @@ async def get_dqi_metrics(
 ):
     """Get Data Quality Index metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"dqi:{study_id}:{site_id}:{days}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_dqi_metrics(study_id, site_id, days)
-        return DQIMetrics(**metrics)
+        result = DQIMetrics(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting DQI metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -138,13 +168,17 @@ async def get_cleanliness_metrics(
 ):
     """Get clean patient metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"cleanliness:{study_id}:{site_id}:{days}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_cleanliness_metrics(study_id, site_id, days)
-        return CleanlinessMetrics(**metrics)
+        result = CleanlinessMetrics(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting cleanliness metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -158,13 +192,17 @@ async def get_query_metrics(
 ):
     """Get query management metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"queries:{study_id}:{site_id}:{days}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_query_metrics(study_id, site_id, days)
-        return QueryMetrics(**metrics)
+        result = QueryMetrics(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting query metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -177,13 +215,17 @@ async def get_sae_metrics(
 ):
     """Get SAE reconciliation metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"saes:{study_id}:{site_id}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_sae_metrics(study_id, site_id)
-        return SAEMetrics(**metrics)
+        result = SAEMetrics(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting SAE metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -196,13 +238,17 @@ async def get_coding_metrics(
 ):
     """Get medical coding completion metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"coding:{study_id}:{site_id}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_coding_metrics(study_id, site_id)
-        return CodingMetrics(**metrics)
+        result = CodingMetrics(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting coding metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -216,13 +262,17 @@ async def get_operational_velocity(
 ):
     """Get operational velocity metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"velocity:{study_id}:{site_id}:{days}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_velocity_metrics(study_id, site_id, days)
-        return OperationalVelocity(**metrics)
+        result = OperationalVelocity(**metrics)
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting velocity metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -236,12 +286,15 @@ async def get_heatmap_data(
 ):
     """Get heatmap data for visualization"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"heatmap:{metric}:{group_by}:{study_id}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         heatmap = await service.get_heatmap_data(metric, group_by, study_id)
+        set_cached(cache_key, heatmap)
         return heatmap
     except Exception as e:
         logger.error(f"Error getting heatmap data: {e}")
@@ -257,21 +310,25 @@ async def get_metric_trends(
 ):
     """Get trend data for multiple metrics"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"trends:{metrics}:{study_id}:{site_id}:{days}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         
         metric_list = [m.strip() for m in metrics.split(",")]
         trends = await service.get_multiple_trends(metric_list, study_id, site_id, days)
         
-        return {
+        result = {
             "success": True,
             "metrics": metric_list,
             "days": days,
             "trends": trends
         }
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting trends: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -284,19 +341,23 @@ async def get_benchmarks(
 ):
     """Get benchmark comparisons"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"benchmarks:{study_id}:{metrics}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         
         metric_list = [m.strip() for m in metrics.split(",")]
         benchmarks = await service.get_benchmarks(study_id, metric_list)
         
-        return {
+        result = {
             "success": True,
             "benchmarks": benchmarks
         }
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error getting benchmarks: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -309,17 +370,21 @@ async def detect_anomalies(
 ):
     """Detect metric anomalies"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        cache_key = f"anomalies:{study_id}:{sensitivity}"
+        cached = get_cached(cache_key)
+        if cached:
+            return cached
+        
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         anomalies = await service.detect_anomalies(study_id, sensitivity)
-        return {
+        result = {
             "success": True,
             "anomalies": anomalies,
             "total": len(anomalies)
         }
+        set_cached(cache_key, result)
+        return result
     except Exception as e:
         logger.error(f"Error detecting anomalies: {e}")
         raise HTTPException(status_code=500, detail=str(e))

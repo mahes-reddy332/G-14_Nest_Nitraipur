@@ -12,10 +12,16 @@ websockets>=11.0
 pandas>=2.0.0
 numpy>=1.24.0
 networkx>=3.0
+psutil>=5.9.0
+openpyxl>=3.1.2
 
 # CORS and HTTP
 python-multipart>=0.0.6
 httpx>=0.24.0
+
+# Security
+pyjwt>=2.8.0
+cryptography>=42.0.0
 
 # AI and LLM dependencies
 langchain>=0.1.0
@@ -30,6 +36,16 @@ pytest-cov>=4.1.0
 pytest-mock>=3.12.0
 httpx>=0.24.0  # For async HTTP testing
 faker>=20.0.0  # For generating test data
+pytest-playwright>=0.4.4
+playwright>=1.42.0
 
 # Optional: for production
 gunicorn>=21.0.0
+
+# Integration & Data Quality (Gap Closure Phase 1)
+apache-airflow>=2.8.0; sys_platform != 'win32' # Airflow strictly not supported on native Windows, use WSL
+dbt-core>=1.7.0
+dbt-duckdb>=1.7.0
+great_expectations>=0.18.0
+openlineage-airflow>=1.2.0; sys_platform != 'win32'
+pandas>=2.0.0

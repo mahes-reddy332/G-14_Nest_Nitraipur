@@ -10,16 +10,15 @@ from datetime import datetime
 from enum import Enum
 import logging
 
-from api.config import get_service
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def get_alert_service():
-    """Dependency to get the singleton AlertService"""
-    return get_service("alert_service")
+async def get_alert_service():
+    """Dependency to get the singleton AlertService - already initialized"""
+    from api.config import get_initialized_alert_service
+    return await get_initialized_alert_service()
 
 
 # ============== Enums ==============
@@ -105,8 +104,6 @@ async def get_alerts(
 ):
     """Get alerts with filters"""
     try:
-        await service.initialize()
-        
         filters = {
             "study_id": study_id,
             "site_id": site_id,
@@ -132,7 +129,6 @@ async def get_alert_summary(
 ):
     """Get alert summary counts"""
     try:
-        await service.initialize()
         summary = await service.get_alert_summary(study_id, site_id)
         return AlertSummary(**summary)
     except Exception as e:
@@ -148,7 +144,6 @@ async def get_critical_alerts(
 ):
     """Get critical alerts requiring immediate attention"""
     try:
-        await service.initialize()
         alerts = await service.get_critical_alerts(study_id, unresolved_only)
         return [Alert(**a) for a in alerts]
     except Exception as e:
@@ -165,11 +160,31 @@ async def get_recent_alerts(
 ):
     """Get recently created alerts"""
     try:
-        await service.initialize()
         alerts = await service.get_recent_alerts(hours, study_id, limit)
         return [Alert(**a) for a in alerts]
     except Exception as e:
         logger.error(f"Error getting recent alerts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/trends")
+async def get_alert_trends(
+    study_id: Optional[str] = Query(None),
+    days: int = Query(30, description="Trend period"),
+    group_by: str = Query("day", description="Grouping: day|week|category|severity"),
+    service = Depends(get_alert_service)
+):
+    """Get alert trends over time"""
+    try:
+        trends = await service.get_alert_trends(study_id, days, group_by)
+        return {
+            "success": True,
+            "days": days,
+            "group_by": group_by,
+            "trends": trends
+        }
+    except Exception as e:
+        logger.error(f"Error getting alert trends: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -180,7 +195,6 @@ async def get_alert_detail(
 ):
     """Get detailed information for a specific alert"""
     try:
-        await service.initialize()
         alert = await service.get_alert(alert_id)
         if not alert:
             raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
@@ -200,7 +214,6 @@ async def acknowledge_alert(
 ):
     """Acknowledge an alert"""
     try:
-        await service.initialize()
         result = await service.acknowledge_alert(
             alert_id,
             acknowledgement.acknowledged_by,
@@ -229,7 +242,6 @@ async def resolve_alert(
 ):
     """Resolve an alert"""
     try:
-        await service.initialize()
         result = await service.resolve_alert(
             alert_id,
             resolution.resolved_by,
@@ -260,7 +272,6 @@ async def dismiss_alert(
 ):
     """Dismiss an alert (mark as not actionable)"""
     try:
-        await service.initialize()
         result = await service.dismiss_alert(alert_id, dismissed_by, reason)
         if not result:
             raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
@@ -286,7 +297,6 @@ async def get_alert_history(
 ):
     """Get alert history for an entity"""
     try:
-        await service.initialize()
         history = await service.get_alert_history(entity_type, entity_id, days)
         return {
             "success": True,
@@ -297,26 +307,4 @@ async def get_alert_history(
         }
     except Exception as e:
         logger.error(f"Error getting alert history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/trends")
-async def get_alert_trends(
-    study_id: Optional[str] = Query(None),
-    days: int = Query(30, description="Trend period"),
-    group_by: str = Query("day", description="Grouping: day|week|category|severity"),
-    service = Depends(get_alert_service)
-):
-    """Get alert trends over time"""
-    try:
-        await service.initialize()
-        trends = await service.get_alert_trends(study_id, days, group_by)
-        return {
-            "success": True,
-            "days": days,
-            "group_by": group_by,
-            "trends": trends
-        }
-    except Exception as e:
-        logger.error(f"Error getting alert trends: {e}")
         raise HTTPException(status_code=500, detail=str(e))

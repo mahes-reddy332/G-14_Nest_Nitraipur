@@ -98,6 +98,9 @@ class PatientListResponse(BaseModel):
     page_size: int
     patients: List[PatientSummary]
     filters_applied: Dict[str, Any]
+    clean_patients: Optional[int] = None
+    dirty_patients: Optional[int] = None
+    at_risk_patients: Optional[int] = None
 
 
 class PatientStatusChange(BaseModel):
@@ -130,9 +133,8 @@ async def get_patients(
 ):
     """Get paginated list of patients with filters"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         
         filters = {
             "study_id": study_id,
@@ -166,9 +168,8 @@ async def get_dirty_patients(
 ):
     """Get list of patients with dirty status (not clean)"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         patients = await service.get_dirty_patients(study_id, limit)
         return [PatientSummary(**p) for p in patients]
     except Exception as e:
@@ -183,9 +184,8 @@ async def get_at_risk_patients(
 ):
     """Get patients at risk of becoming dirty or with high risk indicators"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         patients = await service.get_at_risk_patients(study_id, risk_threshold)
         return [PatientSummary(**p) for p in patients]
     except Exception as e:
@@ -201,9 +201,8 @@ async def get_recent_status_changes(
 ):
     """Get recent patient status changes"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         changes = await service.get_status_changes(study_id, hours, limit)
         return [PatientStatusChange(**c) for c in changes]
     except Exception as e:
@@ -264,9 +263,8 @@ async def refresh_patient_twin(
 async def get_patient_detail(patient_id: str = Path(..., description="Patient ID")):
     """Get detailed information for a specific patient"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         patient = await service.get_patient_detail(patient_id)
         if not patient:
             raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
@@ -282,9 +280,8 @@ async def get_patient_detail(patient_id: str = Path(..., description="Patient ID
 async def get_patient_clean_status(patient_id: str = Path(..., description="Patient ID")):
     """Get clean patient status with breakdown of blocking factors"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         status = await service.calculate_clean_status(patient_id)
         return CleanPatientStatus(**status)
     except Exception as e:
@@ -296,9 +293,8 @@ async def get_patient_clean_status(patient_id: str = Path(..., description="Pati
 async def get_patient_timeline(patient_id: str = Path(..., description="Patient ID")):
     """Get patient event timeline"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         timeline = await service.get_patient_timeline(patient_id)
         return {
             "success": True,
@@ -314,9 +310,8 @@ async def get_patient_timeline(patient_id: str = Path(..., description="Patient 
 async def get_blocking_factors(patient_id: str = Path(..., description="Patient ID")):
     """Get detailed breakdown of factors blocking patient from being clean"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         factors = await service.get_blocking_factors(patient_id)
         return {
             "success": True,
@@ -340,9 +335,8 @@ async def get_blocking_factors(patient_id: str = Path(..., description="Patient 
 async def get_lock_readiness(patient_id: str = Path(..., description="Patient ID")):
     """Get patient lock readiness assessment"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         readiness = await service.get_lock_readiness(patient_id)
         return {
             "success": True,
@@ -352,52 +346,3 @@ async def get_lock_readiness(patient_id: str = Path(..., description="Patient ID
     except Exception as e:
         logger.error(f"Error getting lock readiness: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/twins", response_model=List[Dict[str, Any]])
-async def get_digital_twins(
-    study_id: Optional[str] = Query(None, description="Filter by study ID"),
-    service: ClinicalDataService = Depends(get_data_service)
-):
-    """
-    Get all digital patient twins (real-time generated)
-    
-    Returns dynamically generated twins instead of static JSON files.
-    Twins are created on-demand using NetworkX graph processing.
-    """
-    try:
-        twins = await service.get_all_twins(study_id)
-        return twins
-    except Exception as e:
-        logger.error(f"Error getting digital twins: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to get digital twins: {str(e)}")
-
-
-@router.post("/twins/{patient_id}/refresh")
-async def refresh_patient_twin(
-    patient_id: str = Path(..., description="Patient ID to refresh"),
-    service: ClinicalDataService = Depends(get_data_service)
-):
-    """
-    Refresh a specific patient's digital twin
-    
-    Forces regeneration of the twin and broadcasts update via WebSocket.
-    """
-    try:
-        # Get updated twin data
-        twin_data = await service.get_patient_detail(patient_id)
-        if twin_data:
-            await service.notify_twin_update(patient_id, twin_data)
-            return {
-                "success": True,
-                "patient_id": patient_id,
-                "refreshed_at": datetime.now().isoformat(),
-                "twin_data": twin_data
-            }
-        else:
-            raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error refreshing twin for {patient_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to refresh twin: {str(e)}")

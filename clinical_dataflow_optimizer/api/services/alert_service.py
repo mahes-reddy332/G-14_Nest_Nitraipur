@@ -44,66 +44,219 @@ class AlertService:
         self.alerts: Dict[str, Dict] = {}
         self._alert_counter = 0
         self._initialized = False
+        self._last_evaluated_at: Optional[datetime] = None
+        self._evaluation_lock = asyncio.Lock()
     
     async def initialize(self):
-        """Initialize alert service with some sample alerts"""
+        """Initialize alert service"""
         if self._initialized:
             return
-        
-        # Generate sample alerts
-        sample_alerts = [
-            {
-                'category': AlertCategory.DATA_QUALITY.value,
-                'severity': AlertSeverity.CRITICAL.value,
-                'title': 'Critical DQI Drop Detected',
-                'description': 'Site SITE_023 DQI dropped below 50% in the last 24 hours',
-                'source': 'data_quality_monitor',
-                'affected_entity': {'type': 'site', 'id': 'SITE_023'},
-                'details': {'current_dqi': 48.5, 'previous_dqi': 72.3}
-            },
-            {
-                'category': AlertCategory.SAFETY.value,
-                'severity': AlertSeverity.HIGH.value,
-                'title': 'SAE Pending Reconciliation',
-                'description': '5 SAE records pending reconciliation for more than 48 hours',
-                'source': 'sae_monitor',
-                'affected_entity': {'type': 'sae_records', 'id': 'multiple'},
-                'details': {'count': 5, 'oldest_pending_hours': 72}
-            },
-            {
-                'category': AlertCategory.OPERATIONAL.value,
-                'severity': AlertSeverity.MEDIUM.value,
-                'title': 'Query Backlog Increasing',
-                'description': 'Open queries increased by 25% in the last week',
-                'source': 'query_monitor',
-                'affected_entity': {'type': 'study', 'id': 'Study_1'},
-                'details': {'current_count': 156, 'previous_count': 125}
-            },
-            {
-                'category': AlertCategory.COMPLIANCE.value,
-                'severity': AlertSeverity.HIGH.value,
-                'title': 'Protocol Deviation Trend',
-                'description': 'Increasing protocol deviations at 3 sites',
-                'source': 'compliance_monitor',
-                'affected_entity': {'type': 'sites', 'id': 'multiple'},
-                'details': {'sites': ['SITE_012', 'SITE_034', 'SITE_056']}
-            },
-            {
-                'category': AlertCategory.DATA_QUALITY.value,
-                'severity': AlertSeverity.LOW.value,
-                'title': 'Minor Data Entry Discrepancies',
-                'description': '12 minor discrepancies detected in visit data',
-                'source': 'data_validator',
-                'affected_entity': {'type': 'visits', 'id': 'multiple'},
-                'details': {'count': 12}
-            }
-        ]
-        
-        for alert_data in sample_alerts:
-            await self.create_alert(**alert_data)
-        
+
         self._initialized = True
-        logger.info("Alert service initialized with sample alerts")
+        await self._evaluate_alerts_if_needed(force=True)
+        logger.info("Alert service initialized")
+
+    async def _evaluate_alerts_if_needed(self, force: bool = False, study_id: Optional[str] = None) -> None:
+        """Evaluate rules and generate alerts based on current data."""
+        from api.config import get_initialized_data_service, get_settings
+
+        now = datetime.utcnow()
+        settings = get_settings()
+        interval = max(30, settings.alert_check_interval)
+
+        if not force and self._last_evaluated_at:
+            elapsed = (now - self._last_evaluated_at).total_seconds()
+            if elapsed < interval:
+                return
+
+        async with self._evaluation_lock:
+            if not force and self._last_evaluated_at:
+                elapsed = (datetime.utcnow() - self._last_evaluated_at).total_seconds()
+                if elapsed < interval:
+                    return
+
+            data_service = await get_initialized_data_service()
+            studies = await data_service.get_all_studies()
+
+            if study_id:
+                studies = [s for s in studies if s.get('study_id') == study_id]
+
+            active_fingerprints = {
+                a.get('details', {}).get('fingerprint')
+                for a in self.alerts.values()
+                if a.get('status') not in [AlertStatus.RESOLVED.value, AlertStatus.DISMISSED.value]
+            }
+
+            for study in studies:
+                study_id_value = study.get('study_id')
+                if not study_id_value:
+                    continue
+
+                total_patients = study.get('total_patients', 0) or 0
+                dqi_score = float(study.get('dqi_score', 0) or 0)
+                cleanliness_rate = float(study.get('cleanliness_rate', 0) or 0)
+                open_queries = int(study.get('open_queries', 0) or 0)
+                pending_saes = int(study.get('pending_saes', 0) or 0)
+                uncoded_terms = int(study.get('uncoded_terms', 0) or 0)
+
+                # Study-level alerts
+                if dqi_score < 75:
+                    severity = AlertSeverity.CRITICAL.value if dqi_score < 60 else AlertSeverity.HIGH.value
+                    fingerprint = f"study:{study_id_value}:dqi:{severity}"
+                    if fingerprint not in active_fingerprints:
+                        await self.create_alert(
+                            category=AlertCategory.DATA_QUALITY.value,
+                            severity=severity,
+                            title="Low Data Quality Index",
+                            description=f"Study {study_id_value} has DQI {dqi_score:.1f}, below target.",
+                            source="rule_engine",
+                            affected_entity={"type": "study", "id": study_id_value},
+                            details={
+                                "metric": "dqi_score",
+                                "value": dqi_score,
+                                "threshold": 75,
+                                "fingerprint": fingerprint,
+                            }
+                        )
+                        active_fingerprints.add(fingerprint)
+
+                if cleanliness_rate < 85:
+                    severity = AlertSeverity.HIGH.value if cleanliness_rate < 75 else AlertSeverity.MEDIUM.value
+                    fingerprint = f"study:{study_id_value}:cleanliness:{severity}"
+                    if fingerprint not in active_fingerprints:
+                        await self.create_alert(
+                            category=AlertCategory.OPERATIONAL.value,
+                            severity=severity,
+                            title="Cleanliness Rate Below Target",
+                            description=f"Study {study_id_value} cleanliness rate is {cleanliness_rate:.1f}%.",
+                            source="rule_engine",
+                            affected_entity={"type": "study", "id": study_id_value},
+                            details={
+                                "metric": "cleanliness_rate",
+                                "value": cleanliness_rate,
+                                "threshold": 85,
+                                "fingerprint": fingerprint,
+                            }
+                        )
+                        active_fingerprints.add(fingerprint)
+
+                query_threshold_high = max(50, int(total_patients * 0.5))
+                query_threshold_medium = max(20, int(total_patients * 0.2))
+                if open_queries >= query_threshold_medium:
+                    severity = AlertSeverity.HIGH.value if open_queries >= query_threshold_high else AlertSeverity.MEDIUM.value
+                    fingerprint = f"study:{study_id_value}:queries:{severity}"
+                    if fingerprint not in active_fingerprints:
+                        await self.create_alert(
+                            category=AlertCategory.OPERATIONAL.value,
+                            severity=severity,
+                            title="High Volume of Open Queries",
+                            description=f"Study {study_id_value} has {open_queries} open queries.",
+                            source="rule_engine",
+                            affected_entity={"type": "study", "id": study_id_value},
+                            details={
+                                "metric": "open_queries",
+                                "value": open_queries,
+                                "threshold": query_threshold_medium,
+                                "fingerprint": fingerprint,
+                            }
+                        )
+                        active_fingerprints.add(fingerprint)
+
+                if pending_saes > 0:
+                    severity = AlertSeverity.CRITICAL.value if pending_saes >= 5 else AlertSeverity.HIGH.value
+                    fingerprint = f"study:{study_id_value}:sae:{severity}"
+                    if fingerprint not in active_fingerprints:
+                        await self.create_alert(
+                            category=AlertCategory.SAFETY.value,
+                            severity=severity,
+                            title=f"Pending SAE Reconciliation - {study_id_value}",
+                            description=f"Study {study_id_value} has {pending_saes} pending SAE records.",
+                            source="rule_engine",
+                            affected_entity={"type": "study", "id": study_id_value},
+                            details={
+                                "metric": "pending_saes",
+                                "value": pending_saes,
+                                "threshold": 1,
+                                "fingerprint": fingerprint,
+                            }
+                        )
+                        active_fingerprints.add(fingerprint)
+
+                if uncoded_terms > max(30, int(total_patients * 0.3)):
+                    severity = AlertSeverity.MEDIUM.value
+                    fingerprint = f"study:{study_id_value}:coding:{severity}"
+                    if fingerprint not in active_fingerprints:
+                        await self.create_alert(
+                            category=AlertCategory.COMPLIANCE.value,
+                            severity=severity,
+                            title=f"Uncoded Terms - {study_id_value}",
+                            description=f"Study {study_id_value} has {uncoded_terms} uncoded terms pending.",
+                            source="rule_engine",
+                            affected_entity={"type": "study", "id": study_id_value},
+                            details={
+                                "metric": "uncoded_terms",
+                                "value": uncoded_terms,
+                                "threshold": max(30, int(total_patients * 0.3)),
+                                "fingerprint": fingerprint,
+                            }
+                        )
+                        active_fingerprints.add(fingerprint)
+
+                # Site-level alerts (top offenders)
+                sites = await data_service.get_sites({"study_id": study_id_value}, "dqi_score", "asc")
+                flagged_sites = [
+                    s for s in sites
+                    if float(s.get('dqi_score', 100) or 100) < 75 or int(s.get('open_queries', 0) or 0) > 20
+                ]
+                for site in flagged_sites[:3]:
+                    site_id_value = site.get('site_id') or site.get('site_name')
+                    if not site_id_value:
+                        continue
+                    site_dqi = float(site.get('dqi_score', 0) or 0)
+                    site_queries = int(site.get('open_queries', 0) or 0)
+                    if site_dqi < 75:
+                        severity = AlertSeverity.HIGH.value if site_dqi < 60 else AlertSeverity.MEDIUM.value
+                        fingerprint = f"site:{site_id_value}:dqi:{severity}"
+                        if fingerprint not in active_fingerprints:
+                            await self.create_alert(
+                                category=AlertCategory.DATA_QUALITY.value,
+                                severity=severity,
+                                title=f"Site DQI Below Target - {site_id_value}",
+                                description=f"Site {site_id_value} has DQI {site_dqi:.1f}.",
+                                source="rule_engine",
+                                affected_entity={"type": "site", "id": site_id_value},
+                                details={
+                                    "metric": "dqi_score",
+                                    "value": site_dqi,
+                                    "threshold": 75,
+                                    "study_id": study_id_value,
+                                    "fingerprint": fingerprint,
+                                }
+                            )
+                            active_fingerprints.add(fingerprint)
+
+                    if site_queries > 20:
+                        severity = AlertSeverity.MEDIUM.value if site_queries < 50 else AlertSeverity.HIGH.value
+                        fingerprint = f"site:{site_id_value}:queries:{severity}"
+                        if fingerprint not in active_fingerprints:
+                            await self.create_alert(
+                                category=AlertCategory.OPERATIONAL.value,
+                                severity=severity,
+                                title="Site Query Backlog",
+                                description=f"Site {site_id_value} has {site_queries} open queries.",
+                                source="rule_engine",
+                                affected_entity={"type": "site", "id": site_id_value},
+                                details={
+                                    "metric": "open_queries",
+                                    "value": site_queries,
+                                    "threshold": 20,
+                                    "study_id": study_id_value,
+                                    "fingerprint": fingerprint,
+                                }
+                            )
+                            active_fingerprints.add(fingerprint)
+
+            self._last_evaluated_at = datetime.utcnow()
     
     async def create_alert(self,
                            category: str,
@@ -153,6 +306,7 @@ class AlertService:
             limit: Maximum number of alerts to return
             offset: Number of alerts to skip
         """
+        await self._evaluate_alerts_if_needed(study_id=(filters or {}).get('study_id'))
         alerts = list(self.alerts.values())
         filters = filters or {}
         
@@ -199,6 +353,7 @@ class AlertService:
             study_id: Optional filter by study ID
             site_id: Optional filter by site ID
         """
+        await self._evaluate_alerts_if_needed(study_id=study_id)
         alerts = list(self.alerts.values())
         
         # Apply entity filters if provided
@@ -256,6 +411,7 @@ class AlertService:
             study_id: Optional filter by study ID
             unresolved_only: If True, only return unresolved alerts
         """
+        await self._evaluate_alerts_if_needed(study_id=study_id)
         alerts = [
             a for a in self.alerts.values()
             if a.get('severity') == 'critical'
@@ -281,6 +437,7 @@ class AlertService:
             study_id: Optional filter by study ID
             limit: Maximum number of alerts to return
         """
+        await self._evaluate_alerts_if_needed(study_id=study_id)
         cutoff = datetime.now() - timedelta(hours=hours)
         
         recent = []

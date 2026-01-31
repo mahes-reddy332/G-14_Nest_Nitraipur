@@ -45,15 +45,27 @@ class ErrorBoundary extends Component<Props, State> {
 
   reportError = async (error: Error, errorInfo: ErrorInfo) => {
     try {
-      // TODO: Implement error reporting to backend
-      // await api.post('/errors/report', {
-      //   message: error.message,
-      //   stack: error.stack,
-      //   componentStack: errorInfo.componentStack,
-      //   timestamp: new Date().toISOString(),
-      //   userAgent: navigator.userAgent,
-      //   url: window.location.href,
-      // })
+      const token = localStorage.getItem('auth_token')
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      }
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+
+      await fetch('/api/errors/report', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          message: error.message,
+          stack: error.stack,
+          component_stack: errorInfo.componentStack,
+          timestamp: new Date().toISOString(),
+          user_agent: navigator.userAgent,
+          url: window.location.href,
+        }),
+      })
     } catch (reportError) {
       console.error('Failed to report error:', reportError)
     }

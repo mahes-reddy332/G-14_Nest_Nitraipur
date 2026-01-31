@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
   },
   build: {
     // Code splitting configuration for optimal bundle sizes
@@ -17,7 +18,7 @@ export default defineConfig({
         manualChunks: {
           // Vendor chunks - split large dependencies
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-antd': ['antd', '@ant-design/icons', '@ant-design/plots'],
+          'vendor-antd': ['antd', '@ant-design/icons', '@ant-design/charts'],
           'vendor-query': ['@tanstack/react-query', 'axios'],
           'vendor-state': ['zustand'],
         },
@@ -41,11 +42,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: 'ws://127.0.0.1:5000',
         ws: true,
         changeOrigin: true,
       },

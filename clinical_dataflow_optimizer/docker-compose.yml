@@ -1,0 +1,44 @@
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # Backend API Service
+  # ==========================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: clinical_mesh_api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    volumes:
+      # Mount artifacts/brain for persistence if needed
+      - ./brain:/app/brain
+    restart: unless-stopped
+    networks:
+      - clinical_network
+
+  # ==========================================
+  # Frontend Web Service
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clinical_mesh_web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - clinical_network
+
+networks:
+  clinical_network:
+    driver: bridge

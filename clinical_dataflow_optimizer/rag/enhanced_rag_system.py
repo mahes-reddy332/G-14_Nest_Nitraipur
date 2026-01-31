@@ -173,7 +173,8 @@ class KnowledgeGraphBuilder:
             sae_df = study_data['sae_data']
             for _, sae_row in sae_df.iterrows():
                 try:
-                    sae_id = f"sae_{study_id}_{sae_row.get('Discrepancy ID', 'UNK')}"
+                    # SAE ID should be just the discrepancy ID - node class adds prefix
+                    sae_id = str(sae_row.get('Discrepancy ID', 'UNK'))
                     sae_node = SAENode(
                         sae_id=sae_id,
                         subject_id=str(sae_row.get('Patient ID', '')),
@@ -206,7 +207,8 @@ class KnowledgeGraphBuilder:
                     if not subject_id:
                         continue
 
-                    event_id = f"{subject_id}_{visit_row.get('Visit', 'UNK')}"
+                    # Event ID should be just the visit name - node class adds subject_id
+                    event_id = str(visit_row.get('Visit', 'UNK'))
                     event_node = EventNode(
                         event_id=event_id,
                         subject_id=subject_id,
@@ -314,6 +316,9 @@ class KnowledgeGraphBuilder:
                                  study_data: Dict[str, pd.DataFrame]) -> int:
         """Add all relationships for a patient"""
         relationships = 0
+        
+        # Construct the proper patient node ID (matching PatientNode.__post_init__)
+        patient_node_id = f"patient_{study_id}_{patient_id}"
 
         # Add site relationship (if site exists)
         if site_id:
@@ -342,14 +347,16 @@ class KnowledgeGraphBuilder:
                 patient_saes = sae_df[normalized_patient_ids == patient_id]
 
                 for _, sae_row in patient_saes.iterrows():
-                    sae_id = f"sae_{study_id}_{sae_row.get('Discrepancy ID', 'UNK')}"
-                    if self.knowledge_graph.connect_patient_to_sae(
-                        patient_id=patient_id,
-                        sae_id=sae_id,
-                        review_status=sae_row.get('Review Status', 'Pending'),
-                        action_status=sae_row.get('Action Status', 'Open')
-                    ):
-                        relationships += 1
+                    sae_node_id = f"sae_{study_id}_{sae_row.get('Discrepancy ID', 'UNK')}"
+                    # Check if SAE node exists before connecting
+                    if sae_node_id in self.knowledge_graph.node_index:
+                        if self.knowledge_graph.connect_patient_to_sae(
+                            patient_id=patient_node_id,
+                            sae_id=sae_node_id,
+                            review_status=sae_row.get('Review Status', 'Pending'),
+                            action_status=sae_row.get('Action Status', 'Open')
+                        ):
+                            relationships += 1
 
         # Add visit relationships
         if 'visit_data' in study_data:
@@ -371,14 +378,15 @@ class KnowledgeGraphBuilder:
                 patient_visits = visit_df_normalized[visit_df_normalized[patient_col].astype(str) == patient_id]
 
                 for _, visit_row in patient_visits.iterrows():
-                    event_id = f"{patient_id}_{visit_row.get('Visit', 'UNK')}"
-                    patient_node_id = f"patient_{study_id}_{patient_id}"
-                    event_node_id = f"event_{study_id}_{patient_id}_{event_id}"
-                    if self.knowledge_graph.connect_patient_to_visit(
-                        patient_id=patient_node_id,
-                        event_id=event_node_id
-                    ):
-                        relationships += 1
+                    visit_name = visit_row.get('Visit', 'UNK')
+                    event_node_id = f"event_{study_id}_{patient_id}_{visit_name}"
+                    # Check if event node exists before connecting
+                    if event_node_id in self.knowledge_graph.node_index:
+                        if self.knowledge_graph.connect_patient_to_visit(
+                            patient_id=patient_node_id,
+                            event_id=event_node_id
+                        ):
+                            relationships += 1
 
         # Add coding relationships
         if 'coding_data' in study_data:
@@ -400,16 +408,17 @@ class KnowledgeGraphBuilder:
                 patient_coding = coding_df_normalized[coding_df_normalized[patient_col].astype(str) == patient_id]
 
                 for _, coding_row in patient_coding.iterrows():
-                    term_id = f"{patient_id}_{hash(coding_row.get('Term', ''))}"
-                    patient_node_id = f"patient_{study_id}_{patient_id}"
-                    coding_node_id = f"term_{study_id}_{term_id}"
-                    if self.knowledge_graph.connect_patient_to_coding_issue(
-                        patient_id=patient_node_id,
-                        term_id=coding_node_id,
-                        verbatim_term=coding_row.get('Term', ''),
-                        coding_status=coding_row.get('Coding_Status', 'UnCoded')
-                    ):
-                        relationships += 1
+                    term_hash = hash(coding_row.get('Term', ''))
+                    coding_node_id = f"term_{study_id}_{patient_id}_{term_hash}"
+                    # Check if coding node exists before connecting
+                    if coding_node_id in self.knowledge_graph.node_index:
+                        if self.knowledge_graph.connect_patient_to_coding_issue(
+                            patient_id=patient_node_id,
+                            term_id=coding_node_id,
+                            verbatim_term=coding_row.get('Term', ''),
+                            coding_status=coding_row.get('Coding_Status', 'UnCoded')
+                        ):
+                            relationships += 1
 
         return relationships
 

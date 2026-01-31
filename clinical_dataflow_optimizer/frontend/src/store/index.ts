@@ -1,5 +1,5 @@
 import { create, StateCreator, StoreApi } from 'zustand'
-import type { Alert, WebSocketEvent, DashboardSummary } from '../types'
+import type { Alert, WebSocketEvent, DashboardSummary, ConnectionState, DateRangeFilter } from '../types'
 
 interface ErrorState {
   message: string
@@ -18,6 +18,14 @@ interface RealTimeState {
   // Connection status
   isConnected: boolean
   setConnected: (status: boolean) => void
+  connectionState: ConnectionState
+  setConnectionState: (state: ConnectionState) => void
+  backendReady: boolean
+  setBackendReady: (ready: boolean) => void
+  connectionError: string | null
+  setConnectionError: (message: string | null) => void
+  reconnectRequestId: number
+  requestReconnect: () => void
 
   // Dashboard summary (cached for quick access)
   dashboardSummary: DashboardSummary | null
@@ -43,6 +51,10 @@ interface RealTimeState {
   // Selected filters (global state)
   selectedStudyId: string | null
   setSelectedStudyId: (studyId: string | null) => void
+  selectedSiteId: string | null
+  setSelectedSiteId: (siteId: string | null) => void
+  dateRange: DateRangeFilter
+  setDateRange: (range: DateRangeFilter) => void
 
   // Error handling
   errors: ErrorState[]
@@ -71,6 +83,14 @@ export const useStore = create<RealTimeState>()((set, get) => ({
   // Connection status
   isConnected: false,
   setConnected: (status: boolean) => set({ isConnected: status }),
+  connectionState: 'idle',
+  setConnectionState: (state: ConnectionState) => set({ connectionState: state }),
+  backendReady: false,
+  setBackendReady: (ready: boolean) => set({ backendReady: ready }),
+  connectionError: null,
+  setConnectionError: (message: string | null) => set({ connectionError: message }),
+  reconnectRequestId: 0,
+  requestReconnect: () => set((state: RealTimeState) => ({ reconnectRequestId: state.reconnectRequestId + 1 })),
 
   // Dashboard summary
   dashboardSummary: null,
@@ -112,6 +132,10 @@ export const useStore = create<RealTimeState>()((set, get) => ({
   // Selected filters
   selectedStudyId: null,
   setSelectedStudyId: (studyId: string | null) => set({ selectedStudyId: studyId }),
+  selectedSiteId: null,
+  setSelectedSiteId: (siteId: string | null) => set({ selectedSiteId: siteId }),
+  dateRange: { start: null, end: null },
+  setDateRange: (range: DateRangeFilter) => set({ dateRange: range }),
 
   // Error handling
   errors: [],

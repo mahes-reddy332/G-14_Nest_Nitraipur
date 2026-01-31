@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Card,
@@ -25,7 +25,8 @@ import {
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { studiesApi, patientsApi, sitesApi } from '../api'
-import type { Study, SourceFile } from '../types'
+import { useStore } from '../store'
+import type { Study, SourceFile, Patient, Site, StudyMetrics } from '../types'
 import type { ColumnsType } from 'antd/es/table'
 
 const { Title, Text } = Typography
@@ -40,6 +41,13 @@ const statusColors: Record<string, string> = {
 export default function Studies() {
   const { studyId } = useParams()
   const [activeTab, setActiveTab] = useState('overview')
+  const { setSelectedStudyId } = useStore()
+
+  useEffect(() => {
+    if (studyId) {
+      setSelectedStudyId(studyId)
+    }
+  }, [studyId, setSelectedStudyId])
 
   // Fetch all studies
   const { data: studies = [], isLoading } = useQuery({
@@ -56,9 +64,23 @@ export default function Studies() {
   })
 
   // Fetch study metrics
-  const { data: metrics } = useQuery({
+  const { data: metrics } = useQuery<StudyMetrics>({
     queryKey: ['studyMetrics', studyId],
     queryFn: () => studiesApi.getMetrics(studyId!),
+    enabled: !!studyId,
+  })
+
+  const { data: studyPatientsData, isLoading: isPatientsLoading } = useQuery<{ patients: Patient[]; total: number }>({
+    queryKey: ['studyPatients', studyId],
+    queryFn: () => patientsApi.getAll({ study_id: studyId!, page: 1, page_size: 200 }),
+    enabled: !!studyId,
+  })
+
+  const studyPatients = studyPatientsData?.patients ?? []
+
+  const { data: studySites = [], isLoading: isSitesLoading } = useQuery<Site[]>({
+    queryKey: ['studySites', studyId],
+    queryFn: () => studiesApi.getSites(studyId!),
     enabled: !!studyId,
   })
 
@@ -115,6 +137,8 @@ export default function Studies() {
             percent={Math.round(rate)}
             size="small"
             status={rate >= 80 ? 'success' : rate >= 60 ? 'normal' : 'exception'}
+            showInfo
+            format={(percent) => `${percent}%`}
           />
         )
       },
@@ -133,6 +157,8 @@ export default function Studies() {
           percent={Math.round(score || 0)}
           size="small"
           status={score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception'}
+          showInfo
+          format={(percent) => `${percent}%`}
         />
       ),
       sorter: (a, b) => (a.dqi_score || 0) - (b.dqi_score || 0),
@@ -146,6 +172,106 @@ export default function Studies() {
 
   // Study detail view
   if (studyId && study) {
+    const patientColumns: ColumnsType<Patient> = [
+      {
+        title: 'Patient ID',
+        dataIndex: 'patient_id',
+        key: 'patient_id',
+      },
+      {
+        title: 'Site',
+        dataIndex: 'site_id',
+        key: 'site_id',
+      },
+      {
+        title: 'Status',
+        key: 'status',
+        render: (_, record) => (
+          <Tag color={record.is_clean ? 'green' : 'orange'}>
+            {record.is_clean ? 'Clean' : 'Dirty'}
+          </Tag>
+        ),
+      },
+      {
+        title: 'Cleanliness Score',
+        dataIndex: 'cleanliness_score',
+        key: 'cleanliness_score',
+        render: (value) => (
+          <Progress
+            percent={Math.round(value || 0)}
+            size="small"
+            status={(value || 0) >= 80 ? 'success' : (value || 0) >= 60 ? 'normal' : 'exception'}
+            showInfo
+            format={(percent) => `${percent}%`}
+          />
+        ),
+      },
+      {
+        title: 'Open Queries',
+        dataIndex: 'query_count',
+        key: 'query_count',
+      },
+    ]
+
+    const siteColumns: ColumnsType<Site> = [
+      {
+        title: 'Site ID',
+        dataIndex: 'site_id',
+        key: 'site_id',
+      },
+      {
+        title: 'Name',
+        dataIndex: 'name',
+        key: 'name',
+      },
+      {
+        title: 'Country',
+        dataIndex: 'country',
+        key: 'country',
+      },
+      {
+        title: 'Patients',
+        dataIndex: 'patient_count',
+        key: 'patient_count',
+      },
+      {
+        title: 'DQI Score',
+        dataIndex: 'dqi_score',
+        key: 'dqi_score',
+        render: (value) => (
+          <Progress
+            percent={Math.round(value || 0)}
+            size="small"
+            status={(value || 0) >= 80 ? 'success' : (value || 0) >= 60 ? 'normal' : 'exception'}
+            showInfo
+            format={(percent) => `${percent}%`}
+          />
+        ),
+      },
+    ]
+
+    const metricsRows = metrics
+      ? Object.entries(metrics)
+          .filter(([key]) => !['study_id', 'study_name'].includes(key))
+          .map(([key, value]) => {
+            let displayValue: string | number = ''
+            if (Array.isArray(value)) {
+              displayValue = value.length
+            } else if (typeof value === 'number' || typeof value === 'string') {
+              displayValue = value
+            } else if (value && typeof value === 'object') {
+              displayValue = JSON.stringify(value)
+            } else {
+              displayValue = '-'
+            }
+            return {
+              key,
+              metric: key.replace(/_/g, ' '),
+              value: displayValue,
+            }
+          })
+      : []
+
     return (
       <div>
         <Breadcrumb
@@ -225,6 +351,8 @@ export default function Studies() {
                             <Progress
                               percent={Math.round(metrics.dqi_score || 0)}
                               status={metrics.dqi_score >= 80 ? 'success' : 'normal'}
+                              showInfo
+                              format={(percent) => `${percent}%`}
                             />
                             <Text type="secondary">Cleanliness Rate: {metrics.cleanliness_rate?.toFixed(1)}%</Text>
                           </Card>
@@ -309,17 +437,45 @@ export default function Studies() {
               {
                 key: 'patients',
                 label: 'Patients',
-                children: <Text>Patient list for {studyId}</Text>,
+                children: (
+                  <Table
+                    columns={patientColumns}
+                    dataSource={studyPatients}
+                    rowKey="patient_id"
+                    loading={isPatientsLoading}
+                    pagination={{ pageSize: 10 }}
+                  />
+                ),
               },
               {
                 key: 'sites',
                 label: 'Sites',
-                children: <Text>Site list for {studyId}</Text>,
+                children: (
+                  <Table
+                    columns={siteColumns}
+                    dataSource={studySites}
+                    rowKey="site_id"
+                    loading={isSitesLoading}
+                    pagination={{ pageSize: 10 }}
+                  />
+                ),
               },
               {
                 key: 'metrics',
                 label: 'Metrics',
-                children: <Text>Detailed metrics for {studyId}</Text>,
+                children: metrics ? (
+                  <Table
+                    columns={[
+                      { title: 'Metric', dataIndex: 'metric', key: 'metric' },
+                      { title: 'Value', dataIndex: 'value', key: 'value' },
+                    ]}
+                    dataSource={metricsRows}
+                    rowKey="key"
+                    pagination={false}
+                  />
+                ) : (
+                  <Text type="secondary">No metrics available for {studyId}</Text>
+                ),
               },
             ]}
           />

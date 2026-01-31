@@ -168,6 +168,16 @@ export default function Alerts() {
       ),
     },
     {
+      title: 'Entity',
+      key: 'entity',
+      render: (_, record) => (
+        <Space>
+          <Tag>{record.affected_entity?.type.toUpperCase()}</Tag>
+          <Text>{record.affected_entity?.id}</Text>
+        </Space>
+      ),
+    },
+    {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',

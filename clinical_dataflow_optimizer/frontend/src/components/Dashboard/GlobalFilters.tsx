@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Select, DatePicker, Button, Space, Typography, Badge } from 'antd'
+import React, { useMemo, useEffect } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Select, DatePicker, Button, Space, Typography, Badge, Tag, Tooltip } from 'antd'
 import {
   FilterOutlined,
   ReloadOutlined,
@@ -33,9 +34,19 @@ interface GlobalFiltersProps {
  * - Last updated timestamp
  */
 export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersProps) {
-  const { selectedStudyId, setSelectedStudyId, isConnected } = useStore()
-  const [selectedSite, setSelectedSite] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const {
+    selectedStudyId,
+    setSelectedStudyId,
+    selectedSiteId,
+    setSelectedSiteId,
+    dateRange,
+    setDateRange,
+    isConnected,
+    connectionState,
+    connectionError,
+  } = useStore()
 
   // Fetch available studies
   const { data: studies = [] } = useQuery({
@@ -51,15 +62,73 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
     enabled: !!selectedStudyId,
   })
 
-  const hasActiveFilters = selectedStudyId || selectedSite || dateRange
+  const hasActiveFilters = selectedStudyId || selectedSiteId || dateRange.start || dateRange.end
 
   const clearAllFilters = () => {
     setSelectedStudyId(null)
-    setSelectedSite(null)
-    setDateRange(null)
+    setSelectedSiteId(null)
+    setDateRange({ start: null, end: null })
+    if (location.pathname.startsWith('/studies')) {
+      navigate('/studies')
+    }
   }
 
-  const activeFilterCount = [selectedStudyId, selectedSite, dateRange].filter(Boolean).length
+  const activeFilterCount = [selectedStudyId, selectedSiteId, dateRange.start && dateRange.end].filter(Boolean).length
+
+  const pickerRange: [Dayjs | null, Dayjs | null] | null = useMemo(() => {
+    if (dateRange.start && dateRange.end) {
+      return [dayjs(dateRange.start), dayjs(dateRange.end)]
+    }
+    return null
+  }, [dateRange])
+
+  const studyOptions = useMemo(
+    () => studies.map((study: any) => ({
+      value: study.study_id,
+      label: study.name || study.study_id,
+    })),
+    [studies]
+  )
+
+  const siteOptions = useMemo(
+    () => sites.map((site: any) => ({
+      value: site.site_id,
+      label: `${site.name || site.site_id} (${site.country || 'N/A'})`,
+    })),
+    [sites]
+  )
+
+  useEffect(() => {
+    setSelectedSiteId(null)
+  }, [selectedStudyId, setSelectedSiteId])
+
+  const routeStudyId = useMemo(() => {
+    const match = location.pathname.match(/^\/studies\/([^/]+)$/)
+    return match ? decodeURIComponent(match[1]) : null
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/studies')) return
+
+    if (selectedStudyId && selectedStudyId !== routeStudyId) {
+      navigate(`/studies/${selectedStudyId}`)
+      return
+    }
+
+    if (!selectedStudyId && routeStudyId) {
+      navigate('/studies')
+    }
+  }, [selectedStudyId, routeStudyId, location.pathname, navigate])
+
+  const connectionLabel = isConnected
+    ? 'Connected'
+    : connectionState === 'retrying'
+      ? 'Retrying'
+      : connectionState === 'waiting_for_backend'
+        ? 'Starting'
+        : connectionState === 'failed'
+          ? 'Failed'
+          : 'Disconnected'
 
   return (
     <div className="global-filters">
@@ -85,15 +154,18 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
           style={{ minWidth: 180 }}
           allowClear
           value={selectedStudyId}
-          onChange={setSelectedStudyId}
-          options={studies.map((study: any) => ({
-            value: study.study_id,
-            label: study.name || study.study_id,
-          }))}
+          onChange={(value) => {
+            setSelectedStudyId(value ?? null)
+            if (location.pathname.startsWith('/studies')) {
+              navigate(value ? `/studies/${value}` : '/studies')
+            }
+          }}
+          options={studyOptions}
           showSearch
           filterOption={(input, option) =>
             (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
           }
+          aria-label="Filter by study"
         />
       </div>
 
@@ -104,17 +176,15 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
           placeholder="All Sites"
           style={{ minWidth: 160 }}
           allowClear
-          value={selectedSite}
-          onChange={setSelectedSite}
+          value={selectedSiteId}
+          onChange={setSelectedSiteId}
           disabled={!selectedStudyId}
-          options={sites.map((site: any) => ({
-            value: site.site_id,
-            label: `${site.name || site.site_id} (${site.country || 'N/A'})`,
-          }))}
+          options={siteOptions}
           showSearch
           filterOption={(input, option) =>
             (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
           }
+          aria-label="Filter by site"
         />
       </div>
 
@@ -122,8 +192,14 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
         <CalendarOutlined style={{ color: 'var(--gray-500)' }} />
         <RangePicker
-          value={dateRange}
-          onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null] | null)}
+          value={pickerRange}
+          onChange={(dates) => {
+            const [start, end] = (dates || []) as [Dayjs | null, Dayjs | null]
+            setDateRange({
+              start: start ? start.startOf('day').toISOString() : null,
+              end: end ? end.endOf('day').toISOString() : null,
+            })
+          }}
           style={{ minWidth: 240 }}
           presets={[
             { label: 'Last 7 Days', value: [dayjs().subtract(7, 'd'), dayjs()] },
@@ -132,6 +208,7 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
             { label: 'This Month', value: [dayjs().startOf('month'), dayjs()] },
             { label: 'This Quarter', value: [dayjs().subtract(3, 'month').startOf('month'), dayjs()] },
           ]}
+          aria-label="Filter by date range"
         />
       </div>
 
@@ -142,9 +219,31 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
           icon={<ClearOutlined />} 
           onClick={clearAllFilters}
           style={{ color: 'var(--gray-500)' }}
+          aria-label="Clear all filters"
         >
           Clear
         </Button>
+      )}
+
+      {/* Applied Filters */}
+      {hasActiveFilters && (
+        <div className="global-filters__applied">
+          {selectedStudyId && (
+            <Tag className="filter-chip" closable onClose={() => setSelectedStudyId(null)}>
+              Study: {selectedStudyId}
+            </Tag>
+          )}
+          {selectedSiteId && (
+            <Tag className="filter-chip" closable onClose={() => setSelectedSiteId(null)}>
+              Site: {selectedSiteId}
+            </Tag>
+          )}
+          {dateRange.start && dateRange.end && (
+            <Tag className="filter-chip" closable onClose={() => setDateRange({ start: null, end: null })}>
+              Dates: {dayjs(dateRange.start).format('MMM D')}–{dayjs(dateRange.end).format('MMM D')}
+            </Tag>
+          )}
+        </div>
       )}
 
       {/* Spacer */}
@@ -153,20 +252,12 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
       {/* Real-time indicator & Refresh */}
       <Space size={16}>
         {/* Connection Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <div 
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: isConnected ? 'var(--status-healthy)' : 'var(--status-critical)',
-              animation: isConnected ? 'pulse 2s infinite' : 'none',
-            }}
-          />
-          <Text style={{ fontSize: 12, color: 'var(--gray-500)' }}>
-            {isConnected ? 'Live' : 'Disconnected'}
-          </Text>
-        </div>
+        <Tooltip title={connectionError || 'Real-time connection status'}>
+          <div className={`connection-pill connection-pill--${isConnected ? 'connected' : connectionState}`}>
+            <span className="connection-pill__dot" />
+            <Text style={{ fontSize: 12, color: 'var(--gray-600)' }}>{connectionLabel}</Text>
+          </div>
+        </Tooltip>
 
         {/* Last Updated */}
         {lastUpdated && (
@@ -181,6 +272,7 @@ export default function GlobalFilters({ onRefresh, lastUpdated }: GlobalFiltersP
           icon={<ReloadOutlined />}
           onClick={onRefresh}
           style={{ color: 'var(--clinical-primary)' }}
+          aria-label="Refresh dashboard data"
         >
           Refresh
         </Button>

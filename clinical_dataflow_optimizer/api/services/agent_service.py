@@ -9,11 +9,16 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+from uuid import uuid4
 
 # LangChain imports
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+
+# LongCat AI integration
+from core.longcat_integration import longcat_client, LongCatClient
+from config.settings import DEFAULT_LONGCAT_CONFIG
 try:
     from langchain.agents import AgentExecutor, create_openai_functions_agent
 except ImportError:
@@ -32,13 +37,20 @@ from .nlq_service import NLQService
 logger = logging.getLogger(__name__)
 
 
+class AgentServiceUnavailableError(Exception):
+    """Raised when AI agent services are unavailable"""
+
+
 class AgentService:
     """
     Service for interfacing with LangChain-based AI agents
+    Uses LongCat AI as primary LLM provider for reasoning
     """
     
     def __init__(self):
         self.llm = None
+        self._llm_available = False
+        self.longcat_client = None  # LongCat AI client for enhanced reasoning
         self.agents: Dict[str, Any] = {}
         self.agent_status: Dict[str, Dict] = {}
         self.nlq_service = NLQService()
@@ -89,21 +101,40 @@ class AgentService:
                 }
             }
             
-            # Initialize OpenAI LLM
-            openai_api_key = os.getenv("OPENAI_API_KEY")
-            if not openai_api_key:
-                logger.warning("OPENAI_API_KEY not set, using mock responses")
-                self._initialized = True
-                return
-            
-            self.llm = ChatOpenAI(
-                model="gpt-4",
-                temperature=0.1,
-                openai_api_key=openai_api_key
-            )
+            # Initialize LongCat LLM (primary) or fallback to OpenAI
+            longcat_api_key = os.getenv("API_KEY_Longcat", "")
+            if longcat_api_key:
+                # Use LongCat AI via OpenAI-compatible interface
+                self.llm = ChatOpenAI(
+                    model=DEFAULT_LONGCAT_CONFIG.model,
+                    temperature=0.1,
+                    openai_api_key=longcat_api_key,
+                    openai_api_base="https://api.longcat.chat/v1"
+                )
+                self.longcat_client = longcat_client
+                self._llm_available = True
+                logger.info("Agent service initialized with LongCat AI LLM")
+            else:
+                # Fallback to OpenAI if available
+                openai_api_key = os.getenv("OPENAI_API_KEY")
+                if not openai_api_key:
+                    logger.warning("Neither API_KEY_Longcat nor OPENAI_API_KEY set, AI insights unavailable")
+                    self._initialized = True
+                    self._llm_available = False
+                    return
+                
+                self.llm = ChatOpenAI(
+                    model="gpt-4",
+                    temperature=0.1,
+                    openai_api_key=openai_api_key
+                )
+                self.longcat_client = None
+                self._llm_available = True
+                logger.info("Agent service initialized with OpenAI (fallback)")
             
             # Initialize agents
             await self._initialize_agents()
+            self._llm_available = True
             
             self._initialized = True
             logger.info("Agent service initialized with LangChain")
@@ -111,6 +142,7 @@ class AgentService:
         except Exception as e:
             logger.error(f"Error initializing agent service: {e}")
             self._initialized = True  # Mark as initialized to prevent repeated attempts
+            self._llm_available = False
     
     async def _initialize_agents(self):
         """Initialize LangChain-based agents"""
@@ -197,25 +229,162 @@ class AgentService:
     async def get_agent_status(self) -> Dict[str, Dict]:
         """Get status of all agents"""
         return self.agent_status
+
+    def _ensure_llm_available(self):
+        if not self._llm_available:
+            raise AgentServiceUnavailableError("AI agent services are unavailable: missing LLM configuration")
+
+    def _build_insight(
+        self,
+        agent: str,
+        title: str,
+        description: str,
+        category: str,
+        priority: str,
+        confidence: float,
+        affected_entities: Optional[Dict[str, Any]] = None,
+        recommended_action: str = "",
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return {
+            "insight_id": f"INS-{uuid4().hex[:8]}",
+            "agent": agent,
+            "title": title,
+            "description": description,
+            "category": category,
+            "priority": priority,
+            "confidence": max(0.0, min(1.0, confidence)),
+            "affected_entities": affected_entities or {},
+            "recommended_action": recommended_action,
+            "generated_at": datetime.now().isoformat(),
+            "expires_at": None,
+            "metadata": metadata or {},
+        }
+
+    async def _get_rule_based_insights(self, agent_type: Optional[str] = None) -> List[Dict]:
+        from api.config import get_initialized_data_service
+
+        data_service = await get_initialized_data_service()
+        summary = await data_service.get_dashboard_summary(None)
+        coding = await data_service.get_coding_aggregate(None)
+        sae = await data_service.get_sae_aggregate(None)
+        agg = await data_service.get_cpid_aggregate(None)
+        sites = await data_service.get_sites({}, "dqi_score", "asc")
+
+        insights: List[Dict[str, Any]] = []
+        total_patients = summary.get("total_patients", 0) or 0
+        overall_dqi = float(summary.get("overall_dqi", 0) or 0)
+        open_queries = int(summary.get("open_queries", 0) or 0)
+        pending_saes = int(summary.get("pending_saes", 0) or 0)
+        uncoded_terms = int(summary.get("uncoded_terms", 0) or 0)
+
+        normalized_agent = agent_type
+
+        # Reconciliation insights
+        if not normalized_agent or normalized_agent in {"reconciliation", "rex"}:
+            if pending_saes > 0:
+                priority = "critical" if pending_saes >= 5 else "high"
+                insights.append(self._build_insight(
+                    agent="reconciliation",
+                    title="Pending SAE reconciliation",
+                    description=f"{pending_saes} SAE records require reconciliation review.",
+                    category="risk",
+                    priority=priority,
+                    confidence=0.9 if pending_saes >= 5 else 0.75,
+                    affected_entities={"study_id": "all"},
+                    recommended_action="Review pending SAEs and reconcile safety/clinical records.",
+                    metadata={"pending_saes": pending_saes}
+                ))
+
+        # Coding insights
+        if not normalized_agent or normalized_agent in {"coding", "codex"}:
+            if uncoded_terms > 0:
+                ratio = uncoded_terms / max(1, total_patients)
+                priority = "high" if ratio >= 0.3 or uncoded_terms >= 50 else "medium"
+                insights.append(self._build_insight(
+                    agent="coding",
+                    title="Uncoded terms backlog",
+                    description=f"{uncoded_terms} medical terms remain uncoded across studies.",
+                    category="compliance",
+                    priority=priority,
+                    confidence=0.8 if priority == "high" else 0.65,
+                    affected_entities={"study_id": "all"},
+                    recommended_action="Prioritize MedDRA/WHODrug coding for pending terms.",
+                    metadata={"uncoded_terms": uncoded_terms, "pending_terms": coding.get("pending_terms", 0)}
+                ))
+
+        # Site liaison insights
+        if not normalized_agent or normalized_agent in {"site_liaison", "lia"}:
+            for site in sites[:2]:
+                site_id = site.get("site_id") or site.get("site_name")
+                if not site_id:
+                    continue
+                site_dqi = float(site.get("dqi_score", 0) or 0)
+                site_queries = int(site.get("open_queries", 0) or 0)
+                if site_dqi < 75 or site_queries > 20:
+                    priority = "high" if site_dqi < 60 or site_queries > 50 else "medium"
+                    insights.append(self._build_insight(
+                        agent="site_liaison",
+                        title="Site performance risk",
+                        description=f"Site {site_id} has DQI {site_dqi:.1f} and {site_queries} open queries.",
+                        category="operational",
+                        priority=priority,
+                        confidence=0.7 if priority == "medium" else 0.85,
+                        affected_entities={"site_id": site_id, "study_id": site.get("study_id")},
+                        recommended_action="Coordinate with site to resolve queries and improve data capture.",
+                        metadata={"dqi_score": site_dqi, "open_queries": site_queries}
+                    ))
+
+        # Supervisor insights
+        if not normalized_agent or normalized_agent in {"supervisor", "supervisor"}:
+            if overall_dqi < 80 or open_queries > max(30, int(total_patients * 0.3)):
+                priority = "high" if overall_dqi < 70 or open_queries > max(60, int(total_patients * 0.5)) else "medium"
+                insights.append(self._build_insight(
+                    agent="supervisor",
+                    title="Overall data quality risk",
+                    description=f"Overall DQI is {overall_dqi:.1f} with {open_queries} open queries.",
+                    category="quality",
+                    priority=priority,
+                    confidence=0.75 if priority == "medium" else 0.88,
+                    affected_entities={"study_id": "all"},
+                    recommended_action="Escalate data quality remediation and query resolution focus.",
+                    metadata={
+                        "overall_dqi": overall_dqi,
+                        "open_queries": open_queries,
+                        "missing_visits": agg.get("missing_visits", 0),
+                        "missing_pages": agg.get("missing_pages", 0),
+                    }
+                ))
+
+        return insights
     
     async def get_agent_insights(self, 
                                   agent_type: Optional[str] = None,
                                   priority: Optional[str] = None,
                                   limit: int = 50) -> List[Dict]:
         """Get insights from AI agents"""
-        insights = []
-        
+        insights: List[Dict[str, Any]] = []
+        normalized_agent_type = agent_type
+        if agent_type in {"reconciliation", "coding", "site_liaison"}:
+            normalized_agent_type = agent_type
+        elif agent_type in {"rex", "codex", "lia"}:
+            normalized_agent_type = {
+                "rex": "reconciliation",
+                "codex": "coding",
+                "lia": "site_liaison",
+            }.get(agent_type, agent_type)
+
         # Generate insights based on loaded agents
-        if not agent_type or agent_type == 'rex':
+        if not normalized_agent_type or normalized_agent_type == 'reconciliation':
             insights.extend(await self._get_reconciliation_insights())
         
-        if not agent_type or agent_type == 'codex':
+        if not normalized_agent_type or normalized_agent_type == 'coding':
             insights.extend(await self._get_coding_insights())
         
-        if not agent_type or agent_type == 'lia':
+        if not normalized_agent_type or normalized_agent_type == 'site_liaison':
             insights.extend(await self._get_site_liaison_insights())
         
-        if not agent_type or agent_type == 'supervisor':
+        if not normalized_agent_type or normalized_agent_type == 'supervisor':
             insights.extend(await self._get_supervisor_insights())
         
         # Filter by priority
@@ -231,302 +400,37 @@ class AgentService:
     
     async def _get_reconciliation_insights(self) -> List[Dict]:
         """Get insights from Rex reconciliation agent"""
-        try:
-            # Always try to get NLQ-enhanced analysis for reconciliation patterns
-            nlq_insights = await self._get_nlq_enhanced_insights(
-                "What are the common patterns of data discrepancies in clinical trials?",
-                {"analysis_type": "reconciliation"}
-            )
-            
-            if 'rex' not in self.agents:
-                # Enhance mock insights with NLQ context
-                base_insights = self._get_mock_reconciliation_insights()
-                for insight in base_insights:
-                    insight['nlq_context'] = nlq_insights.get('answer', '')
-                    insight['confidence'] = min(1.0, insight.get('confidence', 0.8) + 0.1)
-                return base_insights
-            
-            # Query the Rex agent for reconciliation insights
-            response = await self.agents['rex'].ainvoke({
-                "input": f"""Analyze clinical trial data for reconciliation needs. Use this NLQ analysis: {nlq_insights.get('answer', 'No NLQ data available')}.
-                
-                Focus on:
-                - SAE discrepancies between clinical and safety databases
-                - Missing data that needs reconciliation
-                - Data quality issues requiring attention
-                - Risk factors for data integrity
-                
-                Provide 2-3 specific insights with actionable recommendations.
-                Format as JSON with fields: title, description, priority, confidence, action"""
-            })
-            
-            # Parse the response and format as insights
-            insights = []
-            content = response.content if hasattr(response, 'content') else str(response)
-            
-            # For now, return enhanced mock insights
-            base_insights = self._get_mock_reconciliation_insights()
-            
-            # Enhance with NLQ context
-            for insight in base_insights:
-                insight['nlq_context'] = nlq_insights.get('answer', '')
-                insight['confidence'] = min(1.0, insight.get('confidence', 0.8) + 0.1)
-            
-            return base_insights
-            
-        except Exception as e:
-            logger.error(f"Error getting Rex insights: {e}")
-            return self._get_mock_reconciliation_insights()
+        return await self._get_rule_based_insights("reconciliation")
     
-    def _get_mock_reconciliation_insights(self) -> List[Dict]:
-        """Fallback mock insights for reconciliation"""
-        return [
-            {
-                'insight_id': 'REC001',
-                'agent': 'rex',
-                'title': 'SAE Reconciliation Discrepancies Detected',
-                'description': '15 SAE records have potential discrepancies between EDC and Safety database',
-                'category': 'data_discrepancy',
-                'priority': 'high',
-                'confidence': 0.92,
-                'affected_entities': {
-                    'type': 'sae_records',
-                    'count': 15,
-                    'ids': ['SAE001', 'SAE002', 'SAE003']
-                },
-                'recommended_action': 'Review flagged SAE records for reconciliation',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {}
-            }
-        ]
     
     async def _get_coding_insights(self) -> List[Dict]:
         """Get insights from Codex coding agent"""
-        if 'codex' not in self.agents:
-            return self._get_mock_coding_insights()
-        
-        try:
-            # Query the Codex agent for coding insights
-            response = await self.agents['codex'].ainvoke({
-                "input": """Analyze clinical trial data for coding needs. Focus on:
-                - Uncoded adverse events requiring MedDRA coding
-                - WHODD coding for medications
-                - Coding quality and standardization issues
-                - Auto-coding opportunities
-                
-                Provide 2-3 specific insights with actionable recommendations.
-                Format as JSON with fields: title, description, priority, confidence, action"""
-            })
-            
-            # For now, return mock insights
-            return self._get_mock_coding_insights()
-            
-        except Exception as e:
-            logger.error(f"Error getting Codex insights: {e}")
-            return self._get_mock_coding_insights()
+        return await self._get_rule_based_insights("coding")
     
-    def _get_mock_coding_insights(self) -> List[Dict]:
-        """Fallback mock insights for coding"""
-        return [
-            {
-                'insight_id': 'COD001',
-                'agent': 'codex',
-                'title': 'Uncoded Adverse Events',
-                'description': '45 adverse events pending MedDRA coding',
-                'category': 'coding_backlog',
-                'priority': 'medium',
-                'confidence': 1.0,
-                'affected_entities': {
-                    'type': 'adverse_events',
-                    'count': 45,
-                    'ids': []
-                },
-                'recommended_action': 'Process uncoded adverse events using auto-coding suggestions',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {'auto_codeable': 32}
-            },
-            {
-                'insight_id': 'COD002',
-                'agent': 'codex',
-                'title': 'Ambiguous Coding Suggestions',
-                'description': '12 adverse event terms have ambiguous coding suggestions requiring manual review',
-                'category': 'coding_quality',
-                'priority': 'medium',
-                'confidence': 0.85,
-                'affected_entities': {
-                    'type': 'ae_terms',
-                    'count': 12,
-                    'ids': []
-                },
-                'recommended_action': 'Manual review of ambiguous coding suggestions',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {}
-            }
-        ]
     
     async def _get_data_quality_insights(self) -> List[Dict]:
         """Get insights from data quality agent"""
-        return [
-            {
-                'insight_id': 'DQ001',
-                'agent': 'data_quality',
-                'title': 'Data Quality Index Below Threshold',
-                'description': '3 sites have DQI scores below 70%, requiring attention',
-                'category': 'quality_alert',
-                'priority': 'high',
-                'confidence': 0.95,
-                'affected_entities': {
-                    'type': 'sites',
-                    'count': 3,
-                    'ids': ['SITE_023', 'SITE_045', 'SITE_067']
-                },
-                'recommended_action': 'Schedule quality review calls with underperforming sites',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {'threshold': 70}
-            }
-        ]
+        raise AgentServiceUnavailableError("Data quality agent not implemented")
     
     async def _get_predictive_insights(self) -> List[Dict]:
         """Get insights from predictive agent"""
-        return [
-            {
-                'insight_id': 'PRED001',
-                'agent': 'predictive',
-                'title': 'Database Lock Risk Assessment',
-                'description': '85% probability of achieving database lock on schedule',
-                'category': 'timeline_prediction',
-                'priority': 'medium',
-                'confidence': 0.85,
-                'affected_entities': {
-                    'type': 'study',
-                    'count': 1,
-                    'ids': ['STUDY_001']
-                },
-                'recommended_action': 'Focus on critical path items to maintain timeline',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {'predicted_date': '2025-03-15', 'confidence_interval': '±7 days'}
-            },
-            {
-                'insight_id': 'PRED002',
-                'agent': 'predictive',
-                'title': 'Query Volume Forecast',
-                'description': 'Expected 120 new queries in next 7 days based on historical patterns',
-                'category': 'workload_prediction',
-                'priority': 'low',
-                'confidence': 0.78,
-                'affected_entities': {
-                    'type': 'queries',
-                    'count': 120,
-                    'ids': []
-                },
-                'recommended_action': 'Ensure adequate CRA capacity for query resolution',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {}
-            }
-        ]
+        raise AgentServiceUnavailableError("Predictive agent not implemented")
     
     async def _get_site_liaison_insights(self) -> List[Dict]:
         """Get insights from site liaison agent"""
-        return [
-            {
-                'insight_id': 'SL001',
-                'agent': 'site_liaison',
-                'title': 'Sites with Communication Gaps',
-                'description': '5 sites have not responded to queries in over 14 days',
-                'category': 'communication',
-                'priority': 'high',
-                'confidence': 1.0,
-                'affected_entities': {
-                    'type': 'sites',
-                    'count': 5,
-                    'ids': ['SITE_012', 'SITE_034']
-                },
-                'recommended_action': 'Escalate to site monitors for follow-up calls',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {'days_threshold': 14}
-            }
-        ]
+        return await self._get_rule_based_insights("site_liaison")
+
+    async def _get_supervisor_insights(self) -> List[Dict]:
+        """Get insights from supervisor agent"""
+        return await self._get_rule_based_insights("supervisor")
     
     async def get_recommendations(self,
                                    category: Optional[str] = None,
                                    study_id: Optional[str] = None,
                                    limit: int = 20) -> List[Dict]:
         """Get actionable recommendations from agents"""
-        recommendations = [
-            {
-                'recommendation_id': 'RECO001',
-                'title': 'Prioritize SAE Reconciliation',
-                'description': 'Focus on reconciling 15 flagged SAE records to ensure database integrity',
-                'category': 'data_quality',
-                'impact': 'high',
-                'effort': 'medium',
-                'priority_score': 92,
-                'source_agent': 'reconciliation',
-                'related_insights': ['REC001', 'REC002'],
-                'action_items': [
-                    'Review SAE discrepancy report',
-                    'Contact safety team for clarification',
-                    'Update EDC records as needed'
-                ],
-                'estimated_completion_time': '4 hours',
-                'generated_at': datetime.now().isoformat(),
-                'status': 'pending'
-            },
-            {
-                'recommendation_id': 'RECO002',
-                'title': 'Clear Coding Backlog',
-                'description': 'Process 32 auto-codeable terms to reduce coding backlog by 71%',
-                'category': 'operational',
-                'impact': 'medium',
-                'effort': 'low',
-                'priority_score': 78,
-                'source_agent': 'coding',
-                'related_insights': ['COD001'],
-                'action_items': [
-                    'Run auto-coding algorithm on pending terms',
-                    'Review and approve auto-coded terms',
-                    'Flag remaining 13 terms for manual review'
-                ],
-                'estimated_completion_time': '2 hours',
-                'generated_at': datetime.now().isoformat(),
-                'status': 'pending'
-            },
-            {
-                'recommendation_id': 'RECO003',
-                'title': 'Site Quality Intervention',
-                'description': 'Schedule quality review calls with 3 underperforming sites',
-                'category': 'site_management',
-                'impact': 'high',
-                'effort': 'medium',
-                'priority_score': 85,
-                'source_agent': 'site_liaison',
-                'related_insights': ['DQ001', 'SL001'],
-                'action_items': [
-                    'Prepare site-specific quality reports',
-                    'Schedule calls with site coordinators',
-                    'Develop corrective action plans'
-                ],
-                'estimated_completion_time': '8 hours',
-                'generated_at': datetime.now().isoformat(),
-                'status': 'pending'
-            }
-        ]
-        
-        # Filter by category
-        if category:
-            recommendations = [r for r in recommendations if r.get('category') == category]
-        
-        # Sort by priority score
-        recommendations.sort(key=lambda x: x.get('priority_score', 0), reverse=True)
-        
-        return recommendations[:limit]
+        self._ensure_llm_available()
+        raise AgentServiceUnavailableError("Recommendations require live agent pipelines")
     
     async def get_explainability(self, insight_id: str) -> Optional[Dict]:
         """Get detailed explanation for an insight"""
@@ -586,178 +490,14 @@ class AgentService:
                                                 study_id: Optional[str] = None,
                                                 severity: Optional[str] = None) -> List[Dict]:
         """Get SAE reconciliation discrepancies"""
-        discrepancies = [
-            {
-                'discrepancy_id': 'DISC001',
-                'sae_id': 'SAE001',
-                'patient_id': 'P0145',
-                'study_id': 'Study_1',
-                'type': 'date_mismatch',
-                'severity': 'high',
-                'edc_value': '2024-11-15',
-                'safety_db_value': '2024-11-14',
-                'detected_at': datetime.now().isoformat(),
-                'status': 'pending',
-                'resolution': None
-            },
-            {
-                'discrepancy_id': 'DISC002',
-                'sae_id': 'SAE002',
-                'patient_id': 'P0289',
-                'study_id': 'Study_1',
-                'type': 'term_mismatch',
-                'severity': 'medium',
-                'edc_value': 'Headache severe',
-                'safety_db_value': 'Severe headache',
-                'detected_at': datetime.now().isoformat(),
-                'status': 'pending',
-                'resolution': None
-            }
-        ]
-        
-        if study_id:
-            discrepancies = [d for d in discrepancies if d.get('study_id') == study_id]
-        
-        if severity:
-            discrepancies = [d for d in discrepancies if d.get('severity') == severity]
-        
-        return discrepancies
+        raise AgentServiceUnavailableError("Reconciliation discrepancies require live data pipelines")
     
-    async def _get_site_liaison_insights(self) -> List[Dict]:
-        """Get insights from Lia site liaison agent"""
-        if 'lia' not in self.agents:
-            return self._get_mock_site_liaison_insights()
-        
-        try:
-            # Query the Lia agent for site liaison insights
-            response = await self.agents['lia'].ainvoke({
-                "input": """Analyze clinical trial data for site management needs. Focus on:
-                - Site performance and compliance issues
-                - Communication gaps with sites
-                - Query management and resolution
-                - Risk factors for site operations
-                
-                Provide 2-3 specific insights with actionable recommendations.
-                Format as JSON with fields: title, description, priority, confidence, action"""
-            })
-            
-            # For now, return mock insights
-            return self._get_mock_site_liaison_insights()
-            
-        except Exception as e:
-            logger.error(f"Error getting Lia insights: {e}")
-            return self._get_mock_site_liaison_insights()
-    
-    def _get_mock_site_liaison_insights(self) -> List[Dict]:
-        """Fallback mock insights for site liaison"""
-        return [
-            {
-                'insight_id': 'LIA001',
-                'agent': 'lia',
-                'title': 'Sites with Communication Gaps',
-                'description': '5 sites have not responded to queries in over 14 days',
-                'category': 'communication',
-                'priority': 'high',
-                'confidence': 1.0,
-                'affected_entities': {
-                    'type': 'sites',
-                    'count': 5,
-                    'ids': ['SITE_001', 'SITE_002', 'SITE_003']
-                },
-                'recommended_action': 'Escalate to site managers for immediate follow-up',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {}
-            }
-        ]
-    
-    async def _get_supervisor_insights(self) -> List[Dict]:
-        """Get insights from Supervisor orchestration agent"""
-        if 'supervisor' not in self.agents:
-            return self._get_mock_supervisor_insights()
-        
-        try:
-            # Query the Supervisor agent for orchestration insights
-            response = await self.agents['supervisor'].ainvoke({
-                "input": """Provide strategic oversight for the clinical trial data management system. Focus on:
-                - Coordination between Rex, Codex, and Lia agents
-                - System-wide risk assessment and prioritization
-                - Resource allocation and task delegation
-                - Overall system efficiency and bottlenecks
-                
-                Provide 2-3 strategic insights with coordination recommendations.
-                Format as JSON with fields: title, description, priority, confidence, action"""
-            })
-            
-            # For now, return mock insights
-            return self._get_mock_supervisor_insights()
-            
-        except Exception as e:
-            logger.error(f"Error getting Supervisor insights: {e}")
-            return self._get_mock_supervisor_insights()
-    
-    def _get_mock_supervisor_insights(self) -> List[Dict]:
-        """Fallback mock insights for supervisor"""
-        return [
-            {
-                'insight_id': 'SUP001',
-                'agent': 'supervisor',
-                'title': 'Agent Coordination Optimization',
-                'description': 'Rex and Lia agents have overlapping site communication tasks',
-                'category': 'orchestration',
-                'priority': 'medium',
-                'confidence': 0.88,
-                'affected_entities': {
-                    'type': 'agents',
-                    'count': 2,
-                    'ids': ['rex', 'lia']
-                },
-                'recommended_action': 'Refine agent task boundaries to avoid duplication',
-                'generated_at': datetime.now().isoformat(),
-                'expires_at': None,
-                'metadata': {}
-            }
-        ]
     
     async def get_coding_issues(self,
                                  study_id: Optional[str] = None,
                                  status: Optional[str] = None) -> List[Dict]:
         """Get medical coding issues"""
-        issues = [
-            {
-                'issue_id': 'CISS001',
-                'term': 'headache severe migraine type',
-                'patient_id': 'P0123',
-                'study_id': 'Study_1',
-                'status': 'pending_review',
-                'suggested_codes': [
-                    {'code': '10019211', 'term': 'Headache', 'confidence': 0.75},
-                    {'code': '10027599', 'term': 'Migraine', 'confidence': 0.85}
-                ],
-                'dictionary': 'MedDRA',
-                'created_at': datetime.now().isoformat()
-            },
-            {
-                'issue_id': 'CISS002',
-                'term': 'skin rash allergic',
-                'patient_id': 'P0456',
-                'study_id': 'Study_1',
-                'status': 'auto_coded',
-                'suggested_codes': [
-                    {'code': '10037844', 'term': 'Rash', 'confidence': 0.92}
-                ],
-                'dictionary': 'MedDRA',
-                'created_at': datetime.now().isoformat()
-            }
-        ]
-        
-        if study_id:
-            issues = [i for i in issues if i.get('study_id') == study_id]
-        
-        if status:
-            issues = [i for i in issues if i.get('status') == status]
-        
-        return issues
+        raise AgentServiceUnavailableError("Coding issues require live coding pipeline data")
     
     async def _get_nlq_enhanced_insights(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Get enhanced insights using NLQ service"""

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Typography, Tooltip, Progress, Space, Skeleton } from 'antd'
+import { Typography, Tooltip, Progress, Space, Skeleton, Empty } from 'antd'
 import {
   CheckCircleOutlined,
   SafetyOutlined,
@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query'
 import { metricsApi } from '../../api'
 import { useStore } from '../../store'
 import '../../styles/clinical-design-system.css'
+import { getDaysFromRange } from '../../utils/filtering'
 
 const { Text, Title } = Typography
 
@@ -37,11 +38,12 @@ interface DQIComponent {
  * - Tooltip explanations
  */
 export default function EnhancedDQIBreakdown() {
-  const { selectedStudyId } = useStore()
+  const { selectedStudyId, selectedSiteId, dateRange } = useStore()
+  const days = getDaysFromRange(dateRange, 30)
 
-  const { data: dqiMetrics, isLoading } = useQuery({
-    queryKey: ['dqiBreakdown', selectedStudyId],
-    queryFn: () => metricsApi.getDQIBreakdown(selectedStudyId || undefined),
+  const { data: dqiMetrics, isLoading, isError } = useQuery({
+    queryKey: ['dqiBreakdown', selectedStudyId, selectedSiteId, days],
+    queryFn: () => metricsApi.getDQIBreakdown(selectedStudyId || undefined, selectedSiteId || undefined, days),
     refetchInterval: 60000,
   })
 
@@ -61,8 +63,24 @@ export default function EnhancedDQIBreakdown() {
     )
   }
 
+  if (isError || !dqiMetrics) {
+    return (
+      <div className="clinical-card">
+        <div className="clinical-card__header">
+          <span className="clinical-card__title">
+            <SafetyOutlined className="clinical-card__title-icon" />
+            Data Quality Index
+          </span>
+        </div>
+        <div className="clinical-card__body">
+          <Empty description="DQI metrics unavailable" />
+        </div>
+      </div>
+    )
+  }
+
   const overallDQI = dqiMetrics?.overall || 0
-  
+
   // DQI Components with targets
   const dqiComponents: DQIComponent[] = [
     {
@@ -124,104 +142,114 @@ export default function EnhancedDQIBreakdown() {
   const overallStatus = getStatusClass(overallDQI, 85)
 
   return (
-    <div className="clinical-card animate-fade-in">
+    <div className="glass-panel" style={{ height: '100%', padding: 24 }}>
       <div className="clinical-card__header">
-        <span className="clinical-card__title">
-          <SafetyOutlined className="clinical-card__title-icon" />
+        <span className="clinical-card__title" style={{ color: 'var(--neon-green)' }}>
+          <SafetyOutlined className="clinical-card__title-icon" style={{ color: 'var(--neon-green)' }} />
           Data Quality Index
         </span>
         <Tooltip title="Composite score measuring overall data quality. Target: ≥85">
-          <InfoCircleOutlined style={{ color: 'var(--gray-400)', cursor: 'help' }} />
+          <InfoCircleOutlined style={{ color: 'rgba(255, 255, 255, 0.3)', cursor: 'help' }} />
         </Tooltip>
       </div>
-      
+
       <div className="clinical-card__body">
         {/* Overall DQI Score */}
-        <div 
-          style={{ 
-            textAlign: 'center', 
-            marginBottom: 'var(--space-6)',
-            padding: 'var(--space-4)',
-            background: 'var(--gray-50)',
-            borderRadius: 'var(--radius-lg)',
+        <div
+          style={{
+            textAlign: 'center',
+            marginBottom: 24,
+            padding: 24,
+            background: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: 16,
+            border: '1px solid rgba(255, 255, 255, 0.05)'
           }}
         >
-          <div style={{ marginBottom: 'var(--space-2)' }}>
-            <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase' }}>
+          <div style={{ marginBottom: 8 }}>
+            <Text style={{ fontSize: 12, textTransform: 'uppercase', color: 'rgba(255, 255, 255, 0.5)', letterSpacing: 1 }}>
               Overall Score
             </Text>
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-            <span 
-              style={{ 
-                fontSize: 48, 
-                fontWeight: 700, 
-                color: getStatusColor(overallDQI, 85),
+            <span
+              style={{
+                fontSize: 56,
+                fontWeight: 700,
+                color: overallStatus === 'healthy' ? 'var(--neon-green)' : overallStatus === 'warning' ? 'var(--neon-yellow)' : 'var(--neon-red)',
                 lineHeight: 1,
+                textShadow: `0 0 20px ${overallStatus === 'healthy' ? 'var(--neon-green)' : overallStatus === 'warning' ? 'var(--neon-yellow)' : 'var(--neon-red)'}`
               }}
             >
               {overallDQI.toFixed(0)}
             </span>
-            <span style={{ fontSize: 20, color: 'var(--gray-500)' }}>/100</span>
+            <span style={{ fontSize: 20, color: 'rgba(255, 255, 255, 0.3)' }}>/100</span>
           </div>
-          <div style={{ marginTop: 'var(--space-2)' }}>
-            <span 
-              className={`metric-row__badge metric-row__badge--${overallStatus}`}
+          <div style={{ marginTop: 12 }}>
+            <span
+              style={{
+                padding: '4px 12px',
+                borderRadius: 12,
+                fontSize: 12,
+                fontWeight: 600,
+                background: overallStatus === 'healthy' ? 'rgba(0, 255, 153, 0.1)' : overallStatus === 'warning' ? 'rgba(252, 238, 10, 0.1)' : 'rgba(255, 51, 51, 0.1)',
+                color: overallStatus === 'healthy' ? 'var(--neon-green)' : overallStatus === 'warning' ? 'var(--neon-yellow)' : 'var(--neon-red)',
+                border: `1px solid ${overallStatus === 'healthy' ? 'var(--neon-green)' : overallStatus === 'warning' ? 'var(--neon-yellow)' : 'var(--neon-red)'}`
+              }}
             >
-              {overallStatus === 'healthy' ? 'On Target' : overallStatus === 'warning' ? 'Needs Attention' : 'Below Target'}
+              {overallStatus === 'healthy' ? 'ON TARGET' : overallStatus === 'warning' ? 'NEEDS ATTENTION' : 'BELOW TARGET'}
             </span>
           </div>
         </div>
 
         {/* Component Breakdown */}
         <div>
-          <Text 
-            strong 
-            style={{ 
-              fontSize: 11, 
-              color: 'var(--gray-500)', 
+          <Text
+            strong
+            style={{
+              fontSize: 11,
+              color: 'rgba(255, 255, 255, 0.4)',
               textTransform: 'uppercase',
               display: 'block',
-              marginBottom: 'var(--space-3)',
+              marginBottom: 16,
+              letterSpacing: 1
             }}
           >
             Component Breakdown
           </Text>
-          
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+
+          <Space direction="vertical" size={20} style={{ width: '100%' }}>
             {dqiComponents.map((component) => {
-              const statusColor = getStatusColor(component.value, component.target)
-              const statusClass = getStatusClass(component.value, component.target)
-              
+              const statusColor = component.value >= component.target * 0.95 ? 'var(--neon-green)' : component.value >= component.target * 0.8 ? 'var(--neon-yellow)' : 'var(--neon-red)';
+
               return (
                 <Tooltip key={component.id} title={component.tooltip}>
                   <div style={{ cursor: 'help' }}>
                     {/* Label Row */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 'var(--space-1)',
+                      marginBottom: 6,
                     }}>
-                      <span style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 'var(--space-2)',
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
                         fontSize: 13,
-                        color: 'var(--gray-700)',
+                        color: 'rgba(255, 255, 255, 0.8)',
                       }}>
                         <span style={{ color: statusColor }}>{component.icon}</span>
                         {component.label}
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {/* Trend Indicator */}
                         {component.trend && component.trend !== 'stable' && (
-                          <span 
-                            style={{ 
+                          <span
+                            style={{
                               fontSize: 11,
-                              color: component.trend === 'up' 
-                                ? 'var(--status-healthy)' 
-                                : 'var(--status-critical)',
+                              color: component.trend === 'up'
+                                ? 'var(--neon-green)'
+                                : 'var(--neon-red)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: 2,
@@ -231,61 +259,52 @@ export default function EnhancedDQIBreakdown() {
                             {Math.abs(component.trendValue || 0)}%
                           </span>
                         )}
-                        <span style={{ 
-                          fontSize: 14, 
-                          fontWeight: 600, 
+                        <span style={{
+                          fontSize: 14,
+                          fontWeight: 600,
                           color: statusColor,
                           minWidth: 45,
                           textAlign: 'right',
+                          textShadow: `0 0 5px ${statusColor}`
                         }}>
                           {component.value.toFixed(1)}%
                         </span>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
-                    <div 
-                      style={{ 
+                    <div
+                      style={{
                         position: 'relative',
-                        height: 8,
-                        background: 'var(--gray-100)',
-                        borderRadius: 'var(--radius-sm)',
+                        height: 6,
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: 3,
                         overflow: 'hidden',
                       }}
                     >
                       {/* Target line */}
-                      <div 
+                      <div
                         style={{
                           position: 'absolute',
                           left: `${component.target}%`,
                           top: 0,
                           bottom: 0,
                           width: 2,
-                          background: 'var(--gray-400)',
+                          background: 'rgba(255, 255, 255, 0.3)',
                           zIndex: 2,
                         }}
                       />
                       {/* Progress bar */}
-                      <div 
+                      <div
                         style={{
                           height: '100%',
                           width: `${Math.min(component.value, 100)}%`,
                           background: statusColor,
-                          borderRadius: 'var(--radius-sm)',
+                          borderRadius: 3,
                           transition: 'width 0.3s ease',
+                          boxShadow: `0 0 8px ${statusColor}`
                         }}
                       />
-                    </div>
-                    
-                    {/* Target label */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'flex-end',
-                      marginTop: 2,
-                    }}>
-                      <Text style={{ fontSize: 10, color: 'var(--gray-400)' }}>
-                        Target: {component.target}%
-                      </Text>
                     </div>
                   </div>
                 </Tooltip>

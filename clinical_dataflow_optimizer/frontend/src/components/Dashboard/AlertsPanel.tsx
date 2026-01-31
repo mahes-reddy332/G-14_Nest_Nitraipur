@@ -4,6 +4,7 @@ import {
   WarningOutlined,
   InfoCircleOutlined,
   CheckCircleOutlined,
+  ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -103,97 +104,98 @@ export default function AlertsPanel() {
   })
 
   const criticalCount = summary?.by_severity?.critical || 0
-  const totalActive = summary?.active_alerts || 0
 
   return (
-    <Card
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>Alerts</span>
-          {criticalCount > 0 && (
-            <Tag color="red">{criticalCount} Critical</Tag>
-          )}
-        </div>
-      }
-      extra={
-        <a onClick={() => navigate('/alerts')}>View All</a>
-      }
-    >
-      {/* Alert severity distribution */}
-      {summary && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <Tooltip title={`Critical: ${summary.by_severity?.critical || 0}`}>
-              <Progress
-                percent={
-                  totalActive > 0
-                    ? ((summary.by_severity?.critical || 0) / totalActive) * 100
-                    : 0
-                }
-                strokeColor="#ff4d4f"
-                showInfo={false}
-                size="small"
-                style={{ flex: 1 }}
-              />
-            </Tooltip>
-            <Tooltip title={`High: ${summary.by_severity?.high || 0}`}>
-              <Progress
-                percent={
-                  totalActive > 0
-                    ? ((summary.by_severity?.high || 0) / totalActive) * 100
-                    : 0
-                }
-                strokeColor="#fa8c16"
-                showInfo={false}
-                size="small"
-                style={{ flex: 1 }}
-              />
-            </Tooltip>
-            <Tooltip title={`Medium: ${summary.by_severity?.medium || 0}`}>
-              <Progress
-                percent={
-                  totalActive > 0
-                    ? ((summary.by_severity?.medium || 0) / totalActive) * 100
-                    : 0
-                }
-                strokeColor="#faad14"
-                showInfo={false}
-                size="small"
-                style={{ flex: 1 }}
-              />
-            </Tooltip>
-            <Tooltip title={`Low: ${summary.by_severity?.low || 0}`}>
-              <Progress
-                percent={
-                  totalActive > 0
-                    ? ((summary.by_severity?.low || 0) / totalActive) * 100
-                    : 0
-                }
-                strokeColor="#52c41a"
-                showInfo={false}
-                size="small"
-                style={{ flex: 1 }}
-              />
-            </Tooltip>
-          </div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {totalActive} active alerts
-          </Text>
-        </div>
-      )}
+    <div className="glass-panel" style={{
+      height: '100%',
+      padding: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      border: '1px solid var(--neon-red)',
+      boxShadow: '0 0 15px rgba(255, 51, 51, 0.15), inset 0 0 20px rgba(255, 51, 51, 0.05)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Decorative corner accents */}
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 20, height: 2, background: 'var(--neon-red)', boxShadow: '0 0 10px var(--neon-red)' }} />
+      <div style={{ position: 'absolute', top: 0, left: 0, width: 2, height: 20, background: 'var(--neon-red)', boxShadow: '0 0 10px var(--neon-red)' }} />
+      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 20, height: 2, background: 'var(--neon-red)', boxShadow: '0 0 10px var(--neon-red)' }} />
+      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 2, height: 20, background: 'var(--neon-red)', boxShadow: '0 0 10px var(--neon-red)' }} />
 
-      {/* Alert list */}
-      <List
-        loading={isLoading}
-        dataSource={alerts.slice(0, 5)}
-        renderItem={(alert) => (
-          <AlertItem
-            alert={alert}
-            onClick={() => navigate(`/alerts?id=${alert.alert_id}`)}
-          />
-        )}
-        locale={{ emptyText: 'No recent alerts' }}
-      />
-    </Card>
+      <div style={{ padding: '24px 24px 0 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+          <ExclamationCircleOutlined style={{ fontSize: 48, color: 'var(--neon-red)' }} />
+          <div>
+            <h2 style={{
+              margin: 0,
+              color: 'var(--neon-red)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 24,
+              textTransform: 'uppercase',
+              letterSpacing: 2,
+              textShadow: '0 0 10px rgba(255, 51, 51, 0.4)'
+            }}>
+              Priority Alert
+            </h2>
+            <div style={{ color: '#fff', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase' }}>
+              Critical Issues Require Attention
+            </div>
+          </div>
+        </div>
+
+        <Text style={{ display: 'block', color: 'rgba(255,255,255,0.7)', marginBottom: 20, fontSize: 16 }}>
+          {criticalCount} issues identified that may impact timelines or data quality.
+        </Text>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 12px' }}>
+        <List
+          loading={isLoading}
+          dataSource={alerts.slice(0, 3)} // Show only top 3
+          split={false}
+          renderItem={(alert) => (
+            <div
+              className="glass-panel-hover"
+              onClick={() => navigate(`/alerts?id=${alert.alert_id}`)}
+              style={{
+                margin: '8px 12px',
+                padding: '12px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                border: '1px solid rgba(255, 51, 51, 0.2)',
+                background: 'rgba(20, 20, 35, 0.4)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text strong style={{ color: '#fff' }}>{alert.title || 'Untitled Alert'}</Text>
+                <Tag color="red" style={{
+                  margin: 0,
+                  background: 'rgba(255, 51, 51, 0.2)',
+                  border: '1px solid var(--neon-red)',
+                  color: '#fff',
+                  boxShadow: '0 0 5px rgba(255, 51, 51, 0.2)'
+                }}>
+                  CRITICAL
+                </Tag>
+              </div>
+              <Text type="secondary" style={{ fontSize: 12 }}>{dayjs(alert.created_at).fromNow()}</Text>
+            </div>
+          )}
+        />
+      </div>
+
+      <div style={{ padding: 16, borderTop: '1px solid rgba(255,51,51,0.2)', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        <div style={{
+          padding: '8px 16px',
+          borderRadius: 20,
+          background: 'rgba(255, 51, 51, 0.1)',
+          border: '1px solid var(--neon-red)',
+          color: '#fff',
+          fontSize: 12
+        }}>
+          {summary?.active_alerts || 0} Total Active Alerts
+        </div>
+      </div>
+    </div>
   )
 }

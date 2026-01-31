@@ -34,38 +34,50 @@ interface AtRiskItem {
  * A prominent banner at the top of the dashboard that highlights
  * critical issues requiring immediate attention. Designed for
  * executive-level visibility in <30 seconds.
+ * 
+ * PERFORMANCE OPTIMIZED: Uses bundled dashboard summary which includes
+ * query metrics and alert data, reducing from 3 API calls to 1.
  */
 export default function AtRiskSummary() {
   const navigate = useNavigate()
   const { selectedStudyId } = useStore()
 
-  // Fetch dashboard summary for key metrics
-  const { data: summary } = useQuery({
+  // OPTIMIZED: Single bundled query fetches all needed data
+  // The getDashboardSummary now returns _query_metrics and _alerts from bundled endpoint
+  const { data: summary, isLoading } = useQuery({
     queryKey: ['dashboardSummary', selectedStudyId],
     queryFn: () => metricsApi.getDashboardSummary(selectedStudyId || undefined),
     refetchInterval: 30000,
+    staleTime: 15000, // Consider data fresh for 15 seconds
   })
 
-  // Fetch query metrics
-  const { data: queryMetrics } = useQuery({
-    queryKey: ['queryMetrics', selectedStudyId],
-    queryFn: () => metricsApi.getQueries(selectedStudyId || undefined),
-    refetchInterval: 60000,
-  })
+  if (isLoading || !summary) {
+    return (
+      <div className="at-risk-banner at-risk-banner--warning animate-fade-in">
+        <div
+          className="at-risk-banner__icon"
+          style={{ background: 'var(--status-info)' }}
+        >
+          <ClockCircleOutlined />
+        </div>
+        <div className="at-risk-banner__content">
+          <div className="at-risk-banner__title">Loading Clinical Data</div>
+          <Text type="secondary">Initializing real-time metrics from source files.</Text>
+        </div>
+      </div>
+    )
+  }
 
-  // Fetch alert summary
-  const { data: alertSummary } = useQuery({
-    queryKey: ['alertSummary'],
-    queryFn: alertsApi.getSummary,
-    refetchInterval: 30000,
-  })
+  // Extract bundled data - no separate API calls needed!
+  const queryMetrics = summary?._query_metrics || null
+  const alertSummary = summary?._alerts || null
 
   // Calculate at-risk items
   const atRiskItems: AtRiskItem[] = []
   let overallSeverity: 'critical' | 'warning' | 'healthy' = 'healthy'
 
-  // Check for critical alerts
-  const criticalAlerts = alertSummary?.by_severity?.critical || 0
+  // Check for critical alerts (using bundled data format)
+  const criticalAlerts = alertSummary?.critical_count || 0
   if (criticalAlerts > 0) {
     atRiskItems.push({
       id: 'critical-alerts',
@@ -204,6 +216,15 @@ export default function AtRiskSummary() {
               <div
                 className={`at-risk-item at-risk-item--${item.severity}`}
                 onClick={() => navigate(item.link)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    navigate(item.link)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`${item.label} ${item.value}`}
                 style={{ cursor: 'pointer' }}
               >
                 <span style={{ opacity: 0.7 }}>{item.icon}</span>

@@ -1,0 +1,33 @@
+
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+venv
+.venv
+env
+.env
+htmlcov
+.pytest_cache
+.coverage
+
+# Node
+frontend/node_modules
+frontend/dist
+frontend/.env.local
+
+# Docker
+docker-compose.override.yml
+
+# IDEs
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db

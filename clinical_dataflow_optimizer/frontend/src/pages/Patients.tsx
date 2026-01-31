@@ -62,13 +62,18 @@ export default function Patients() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
 
   // Fetch patients
-  const { data: patients = [], isLoading } = useQuery({
+  const { data: patientsData, isLoading } = useQuery({
     queryKey: ['patients', selectedStudyId, statusFilter],
     queryFn: () => patientsApi.getAll({
       study_id: selectedStudyId || undefined,
       status: statusFilter || undefined,
+      page: 1,
+      page_size: 200,
     }),
   })
+
+  const patients = patientsData?.patients ?? []
+  const totalPatients = patientsData?.total ?? patients.length
 
   // Fetch clean status for selected patient
   const { data: cleanStatus } = useQuery({
@@ -77,11 +82,8 @@ export default function Patients() {
     enabled: !!selectedPatient,
   })
 
-  // Fetch dirty patients count
-  const { data: dirtyPatients = [] } = useQuery({
-    queryKey: ['dirtyPatients', selectedStudyId],
-    queryFn: () => patientsApi.getDirtyPatients(selectedStudyId || undefined),
-  })
+  const cleanPatientsCount = patientsData?.clean_patients ?? patients.filter(p => p.is_clean).length
+  const dirtyPatientsCount = patientsData?.dirty_patients ?? patients.filter(p => !p.is_clean).length
 
   // Filter patients by search text
   const filteredPatients = patients.filter(p =>
@@ -143,6 +145,8 @@ export default function Patients() {
           percent={Math.round(score || 0)}
           size="small"
           status={score >= 80 ? 'success' : score >= 60 ? 'normal' : 'exception'}
+          showInfo
+          format={(percent) => `${percent}%`}
         />
       ),
       sorter: (a, b) => (a.cleanliness_score || 0) - (b.cleanliness_score || 0),
@@ -219,7 +223,7 @@ export default function Patients() {
           <Card>
             <Statistic
               title="Total Patients"
-              value={patients.length}
+              value={totalPatients}
               prefix={<UserOutlined />}
             />
           </Card>
@@ -228,7 +232,7 @@ export default function Patients() {
           <Card>
             <Statistic
               title="Clean Patients"
-              value={patients.filter(p => p.is_clean).length}
+              value={cleanPatientsCount}
               valueStyle={{ color: '#52c41a' }}
               prefix={<CheckCircleOutlined />}
             />
@@ -238,7 +242,7 @@ export default function Patients() {
           <Card>
             <Statistic
               title="Dirty Patients"
-              value={dirtyPatients.length}
+              value={dirtyPatientsCount}
               valueStyle={{ color: '#ff4d4f' }}
               prefix={<CloseCircleOutlined />}
             />
@@ -248,13 +252,13 @@ export default function Patients() {
           <Card>
             <Statistic
               title="Clean Rate"
-              value={patients.length > 0 
-                ? ((patients.filter(p => p.is_clean).length / patients.length) * 100).toFixed(1)
+              value={totalPatients > 0 
+                ? ((cleanPatientsCount / totalPatients) * 100).toFixed(1)
                 : 0
               }
               suffix="%"
               valueStyle={{ 
-                color: patients.filter(p => p.is_clean).length / patients.length >= 0.8 
+                color: totalPatients > 0 && (cleanPatientsCount / totalPatients) >= 0.8 
                   ? '#52c41a' : '#faad14' 
               }}
             />
@@ -325,6 +329,8 @@ export default function Patients() {
                 <Progress
                   percent={Math.round(selectedPatient.cleanliness_score || 0)}
                   status={selectedPatient.cleanliness_score >= 80 ? 'success' : 'exception'}
+                  showInfo
+                  format={(percent) => `${percent}%`}
                 />
               </Descriptions.Item>
               <Descriptions.Item label="Visits">{selectedPatient.visit_count}</Descriptions.Item>

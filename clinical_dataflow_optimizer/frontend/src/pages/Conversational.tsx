@@ -181,15 +181,15 @@ const Conversational: React.FC = () => {
                   flex: 1,
                   overflowY: 'auto',
                   marginBottom: '16px',
-                  padding: '8px',
-                  border: '1px solid #f0f0f0',
-                  borderRadius: '4px',
-                  backgroundColor: '#fafafa'
+                  padding: '16px',
+                  border: '1px solid #303030',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.2)'
                 }}
               >
                 {messages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#999', padding: '40px' }}>
-                    <RobotOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+                  <div style={{ textAlign: 'center', color: 'rgba(255, 255, 255, 0.45)', padding: '40px' }}>
+                    <RobotOutlined style={{ fontSize: '48px', marginBottom: '16px', color: '#1890ff' }} />
                     <div>Start a conversation by asking a question about clinical trial data.</div>
                   </div>
                 )}
@@ -207,10 +207,11 @@ const Conversational: React.FC = () => {
                       style={{
                         maxWidth: '70%',
                         padding: '12px 16px',
-                        borderRadius: '8px',
-                        backgroundColor: message.type === 'user' ? '#1890ff' : '#f6f6f6',
-                        color: message.type === 'user' ? 'white' : 'black',
-                        border: message.type === 'user' ? 'none' : '1px solid #e8e8e8'
+                        borderRadius: '12px',
+                        backgroundColor: message.type === 'user' ? '#1890ff' : '#1f1f1f',
+                        color: 'white',
+                        border: message.type === 'user' ? 'none' : '1px solid #303030',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
@@ -219,7 +220,7 @@ const Conversational: React.FC = () => {
                           icon={message.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
                           style={{ marginRight: '8px' }}
                         />
-                        <Text strong style={{ color: message.type === 'user' ? 'white' : 'black' }}>
+                        <Text strong style={{ color: 'white' }}>
                           {message.type === 'user' ? 'You' : 'AI Assistant'}
                         </Text>
                         <Text
@@ -227,7 +228,7 @@ const Conversational: React.FC = () => {
                           style={{
                             fontSize: '12px',
                             marginLeft: '8px',
-                            color: message.type === 'user' ? 'rgba(255,255,255,0.8)' : '#999'
+                            color: 'rgba(255, 255, 255, 0.45)'
                           }}
                         >
                           {message.timestamp.toLocaleTimeString()}

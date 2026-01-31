@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,12 @@ class NeuralClinicalDataMeshApp:
 
         self.app = app
         if FLASK_AVAILABLE and SocketIO:
-            self.socketio = SocketIO(app, cors_allowed_origins="*")
+            cors_origins_env = os.getenv(
+                "CORS_ALLOWED_ORIGINS",
+                "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5174"
+            )
+            allowed_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+            self.socketio = SocketIO(app, cors_allowed_origins=allowed_origins)
         return app
 
     def create_dash_app(self):

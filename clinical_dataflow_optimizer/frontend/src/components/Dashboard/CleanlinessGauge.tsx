@@ -1,14 +1,18 @@
-import { Card, Progress, Row, Col, Tag, Tooltip } from 'antd'
+import { Progress, Row, Col, Tag, Tooltip, Skeleton, Empty } from 'antd'
 import { useQuery } from '@tanstack/react-query'
+import { SafetyOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { metricsApi } from '../../api'
 import { useStore } from '../../store'
+import { getDaysFromRange } from '../../utils/filtering'
+import '../../styles/clinical-design-system.css'
 
 export default function CleanlinessGauge() {
-  const { selectedStudyId } = useStore()
+  const { selectedStudyId, selectedSiteId, dateRange } = useStore()
+  const days = getDaysFromRange(dateRange, 30)
 
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ['cleanlinessMetrics', selectedStudyId],
-    queryFn: () => metricsApi.getCleanliness(selectedStudyId || undefined),
+  const { data: metrics, isLoading, isError } = useQuery({
+    queryKey: ['cleanlinessMetrics', selectedStudyId, selectedSiteId, days],
+    queryFn: () => metricsApi.getCleanliness(selectedStudyId || undefined, selectedSiteId || undefined, days),
     refetchInterval: 60000,
   })
 
@@ -18,69 +22,121 @@ export default function CleanlinessGauge() {
     return '#ff4d4f'
   }
 
-  if (isLoading || !metrics) {
-    return <Card title="Patient Cleanliness" loading />
+  if (isLoading) {
+    return (
+      <div className="clinical-card">
+        <div className="clinical-card__header">
+          <span className="clinical-card__title">
+            <SafetyOutlined className="clinical-card__title-icon" />
+            Patient Cleanliness
+          </span>
+        </div>
+        <div className="clinical-card__body">
+          <Skeleton active paragraph={{ rows: 5 }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (isError || !metrics) {
+    return (
+      <div className="clinical-card">
+        <div className="clinical-card__header">
+          <span className="clinical-card__title">
+            <SafetyOutlined className="clinical-card__title-icon" />
+            Patient Cleanliness
+          </span>
+        </div>
+        <div className="clinical-card__body">
+          <Empty description="Cleanliness metrics unavailable" />
+        </div>
+      </div>
+    )
   }
 
   return (
-    <Card title="Patient Cleanliness Status" style={{ height: '100%' }}>
-      <Row gutter={[24, 24]} align="middle">
-        <Col span={12}>
-          <div style={{ textAlign: 'center' }}>
-            <Progress
-              type="dashboard"
-              percent={Math.round(metrics.cleanliness_rate)}
-              strokeColor={getStatusColor(metrics.cleanliness_rate)}
-              format={(percent) => (
-                <div>
-                  <div style={{ fontSize: 28, fontWeight: 'bold' }}>{percent}%</div>
-                  <div style={{ fontSize: 12, color: '#8c8c8c' }}>Clean Rate</div>
+    <div className="glass-panel" style={{ height: '100%', padding: 24 }}>
+      <div className="clinical-card__header">
+        <span className="clinical-card__title" style={{ color: 'var(--neon-green)' }}>
+          <SafetyOutlined className="clinical-card__title-icon" style={{ color: 'var(--neon-green)' }} />
+          Patient Cleanliness
+        </span>
+        <Tooltip title="Share of patients with no blocking data issues">
+          <InfoCircleOutlined style={{ color: 'rgba(255, 255, 255, 0.3)' }} />
+        </Tooltip>
+      </div>
+      <div className="clinical-card__body">
+        <Row gutter={[24, 24]} align="middle">
+          <Col span={12}>
+            <div style={{ textAlign: 'center', position: 'relative' }}>
+              <div style={{
+                position: 'absolute',
+                top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                width: 120, height: 120, borderRadius: '50%',
+                background: 'var(--neon-green)', opacity: 0.1, filter: 'blur(20px)'
+              }} />
+              <Progress
+                type="dashboard"
+                percent={Math.round(metrics.cleanliness_rate)}
+                strokeColor="var(--neon-green)"
+                trailColor="rgba(255, 255, 255, 0.1)"
+                width={140}
+                format={(percent) => (
+                  <div>
+                    <div style={{ fontSize: 32, fontWeight: 'bold', color: '#fff', textShadow: '0 0 10px var(--neon-green)' }}>{percent}%</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)' }}>Clean Rate</div>
+                  </div>
+                )}
+              />
+            </div>
+          </Col>
+          <Col span={12}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <Tooltip title="Patients with no blocking factors">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 8 }}>
+                  <span style={{ color: 'var(--neon-green)' }}>Clean</span>
+                  <span style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>{metrics.clean_count}</span>
                 </div>
-              )}
-            />
-          </div>
-        </Col>
-        <Col span={12}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Tooltip title="Patients with no blocking factors">
-              <div>
-                <Tag color="success" style={{ marginRight: 8 }}>Clean</Tag>
-                <span style={{ fontSize: 18, fontWeight: 'bold' }}>{metrics.clean_count}</span>
-              </div>
-            </Tooltip>
-            <Tooltip title="Patients with unresolved issues">
-              <div>
-                <Tag color="error" style={{ marginRight: 8 }}>Dirty</Tag>
-                <span style={{ fontSize: 18, fontWeight: 'bold' }}>{metrics.dirty_count}</span>
-              </div>
-            </Tooltip>
-            <Tooltip title="Patients approaching dirty status">
-              <div>
-                <Tag color="warning" style={{ marginRight: 8 }}>At Risk</Tag>
-                <span style={{ fontSize: 18, fontWeight: 'bold' }}>{metrics.at_risk_count}</span>
-              </div>
-            </Tooltip>
-          </div>
-        </Col>
-      </Row>
+              </Tooltip>
+              <Tooltip title="Patients with unresolved issues">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: 8 }}>
+                  <span style={{ color: 'var(--neon-red)' }}>Dirty</span>
+                  <span style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>{metrics.dirty_count}</span>
+                </div>
+              </Tooltip>
+              <Tooltip title="Patients approaching dirty status">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: 'var(--neon-yellow)' }}>At Risk</span>
+                  <span style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>{metrics.at_risk_count}</span>
+                </div>
+              </Tooltip>
+            </div>
+          </Col>
+        </Row>
 
-      {/* Trend sparkline placeholder */}
-      <div style={{ marginTop: 16 }}>
-        <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>7-Day Trend</div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 40 }}>
-          {(metrics.trend || []).map((value, index) => (
-            <div
-              key={index}
-              style={{
-                flex: 1,
-                height: `${value}%`,
-                backgroundColor: getStatusColor(value),
-                borderRadius: 2,
-              }}
-            />
-          ))}
+        {/* Trend sparkline */}
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 12, color: 'rgba(255, 255, 255, 0.5)', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>7-DAY TREND</div>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 40 }}>
+            {(metrics.trend || []).length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--gray-400)' }}>No trend data</div>
+            )}
+            {(metrics.trend || []).map((value, index) => (
+              <div
+                key={index}
+                style={{
+                  flex: 1,
+                  height: `${value}%`,
+                  backgroundColor: getStatusColor(value),
+                  borderRadius: 2,
+                  boxShadow: `0 0 5px ${getStatusColor(value)}`,
+                  opacity: 0.8
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </Card>
+    </div>
   )
 }

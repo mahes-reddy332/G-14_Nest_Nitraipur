@@ -11,6 +11,7 @@ from pathlib import Path
 
 # Import enhanced RAG system
 from rag.enhanced_rag_system import EnhancedRAGSystem, QueryType
+from core.security import InputValidator, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ class RAGService:
             # Get data path from environment or use default
             data_path = os.getenv("CLINICAL_DATA_PATH")
             if not data_path:
-                # Use the QC Anonymized Study Files directory
-                data_path = Path(__file__).parent.parent.parent / "QC Anonymized Study Files"
+                # Use the QC Anonymized Study Files directory (in parent of clinical_dataflow_optimizer)
+                data_path = Path(__file__).parent.parent.parent.parent / "QC Anonymized Study Files"
 
             if not data_path.exists():
                 logger.warning(f"Data path {data_path} does not exist, RAG will use fallback knowledge")
@@ -217,15 +218,26 @@ class NLQService:
             await self.initialize()
 
         # Enhance query with context
-        enhanced_query = self._enhance_query(query, context)
+        validated_query = InputValidator.validate_query(query)
+        enhanced_query = self._enhance_query(validated_query, context)
 
         # Use RAG to get answer
         rag_result = await self.rag_service.query(enhanced_query)
 
+        sources = rag_result.get("sources", [])
+        if not sources:
+            sources = [
+                {
+                    "title": "Clinical Knowledge Base",
+                    "content": "Generated response using built-in clinical knowledge.",
+                    "type": "knowledge_base"
+                }
+            ]
+
         # Format response
         return {
             "answer": rag_result["answer"],
-            "sources": rag_result["sources"],
+            "sources": sources,
             "confidence": rag_result["confidence"],
             "query_type": self._classify_query(query) or "general"
         }

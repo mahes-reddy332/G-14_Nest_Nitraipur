@@ -1,29 +1,22 @@
-import { Row, Col, Typography, Space, Breadcrumb, Tabs, Badge, Card } from 'antd'
-import { HomeOutlined, DashboardOutlined, PieChartOutlined, LineChartOutlined, AlertOutlined } from '@ant-design/icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { Typography } from 'antd'
 import {
-  // Original Components
-  CleanlinessGauge,
   AlertsPanel,
-  AgentInsightsPanel,
-  DataHeatmap,
-  QueryVelocityChart,
-  StudyDistributionChart,
-  // Enhanced Components
-  AtRiskSummary,
+  CleanlinessGauge,
+  EnhancedDQIBreakdown,
   EnhancedKPISections,
   EnhancedQueryStatus,
-  EnhancedDQIBreakdown,
   GlobalFilters,
+  QueryVelocityChart,
 } from '../components/Dashboard'
 import { useStore } from '../store'
 import '../styles/clinical-design-system.css'
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
 export default function Dashboard() {
-  const { selectedStudyId, isConnected } = useStore()
+  const { isConnected } = useStore()
   const queryClient = useQueryClient()
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString())
 
@@ -40,72 +33,74 @@ export default function Dashboard() {
 
   return (
     <div className="clinical-dashboard">
-      {/* Breadcrumb */}
-      <Breadcrumb
-        items={[
-          { href: '/', title: <HomeOutlined /> },
-          { title: <><DashboardOutlined /> Dashboard</> },
-        ]}
-        style={{ marginBottom: 16 }}
-      />
+      <div
+        style={{
+          maxWidth: 1600, // Increased max-width for the grid
+          margin: '0 auto',
+          padding: '16px 24px 32px',
+        }}
+      >
+        {/* Global Filters - Sticky pill-style bar */}
+        <GlobalFilters onRefresh={handleRefresh} lastUpdated={lastUpdated} />
 
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Space direction="vertical" size={4}>
-          <Title level={2} style={{ margin: 0, color: 'var(--gray-800)' }}>
-            Clinical Data Dashboard
-          </Title>
-          <Text type="secondary">
-            Real-time overview of clinical trial data quality and operational metrics
-            {selectedStudyId && ` • Filtered by ${selectedStudyId}`}
-          </Text>
-        </Space>
-      </div>
-
-      {/* Global Filters - Sticky */}
-      <GlobalFilters onRefresh={handleRefresh} lastUpdated={lastUpdated} />
-
-      {/* At-Risk Summary Banner - Critical items first */}
-      <AtRiskSummary />
-
-      {/* Enhanced KPI Sections - Organized by category */}
-      <EnhancedKPISections />
-
-      {/* Main Grid - Row 1: DQI Breakdown + Query Status + Cleanliness */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-        <Col xs={24} lg={8}>
-          <EnhancedDQIBreakdown />
-        </Col>
-        <Col xs={24} lg={8}>
-          <EnhancedQueryStatus />
-        </Col>
-        <Col xs={24} lg={8}>
-          <CleanlinessGauge />
-        </Col>
-      </Row>
-
-      {/* Main Grid - Row 2: Study Distribution + Query Velocity */}
-      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
-        <Col xs={24} lg={12}>
-          <StudyDistributionChart />
-        </Col>
-        <Col xs={24} lg={12}>
-          <QueryVelocityChart />
-        </Col>
-      </Row>
-
-      {/* Main Grid - Row 3: Heatmap + Alerts/Insights */}
-      <Row gutter={[24, 24]}>
-        <Col xs={24} lg={16}>
-          <DataHeatmap metric="dqi" title="Site Data Quality Heatmap" />
-        </Col>
-        <Col xs={24} lg={8}>
-          <Space direction="vertical" size={24} style={{ width: '100%' }}>
+        <div className="dashboard-grid">
+          {/* Row 1: Priority Alert (2 cols), Charts (1 col each) */}
+          <div className="grid-item-span-2">
             <AlertsPanel />
-            <AgentInsightsPanel />
-          </Space>
-        </Col>
-      </Row>
+          </div>
+          <div className="grid-item-span-1">
+            {/* Alert Trends Chart */}
+            <div className="glass-panel" style={{ height: '100%', padding: 20, display: 'flex', flexDirection: 'column' }}>
+              <Title level={5} style={{ color: 'var(--neon-cyan)', margin: '0 0 16px 0', fontFamily: 'var(--font-display)' }}>
+                Alert Trends
+              </Title>
+              <div style={{ flex: 1, minHeight: 200 }}>
+                <div style={{ flex: 1, minHeight: 200 }}>
+                  <QueryVelocityChart embedded={true} />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid-item-span-1">
+            {/* Total Patients Card */}
+            <div className="glass-panel" style={{ height: '100%', padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <Title level={5} style={{ color: 'var(--neon-cyan)', margin: 0, textTransform: 'uppercase', letterSpacing: 1 }}>Total Patients</Title>
+              <div style={{ fontSize: 48, fontWeight: 'bold', color: '#fff', textShadow: '0 0 20px rgba(255, 255, 255, 0.3)', marginTop: 8 }}>
+                57,997
+              </div>
+              <div style={{ marginTop: 'auto' }}>
+                <div style={{ marginTop: 'auto' }}>
+                  <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+                    {[4, 7, 5, 9, 8, 5, 2, 4, 3, 6, 8, 10, 5, 7, 3].map((h, i) => (
+                      <div key={i} style={{ flex: 1, height: `${h * 10}%`, background: 'var(--clinical-primary)', opacity: 0.3 + (i * 0.05), borderRadius: '2px 2px 0 0' }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Stats Cards */}
+          <div className="grid-item-span-4">
+            <EnhancedKPISections />
+          </div>
+
+          {/* Row 3: Protocol Deviations */}
+          <div className="grid-item-span-4">
+            <div className="glass-panel" style={{ height: '100%', padding: 0 }}>
+              <EnhancedQueryStatus />
+            </div>
+          </div>
+
+          {/* Row 3: Data Quality */}
+          <div className="grid-item-span-2">
+            <EnhancedDQIBreakdown />
+          </div>
+          <div className="grid-item-span-2">
+            <CleanlinessGauge />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

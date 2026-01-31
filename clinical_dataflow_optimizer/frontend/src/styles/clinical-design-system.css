@@ -1,66 +1,59 @@
 /**
- * Clinical Data Dashboard Design System
- * ======================================
+ * Clinical Data Dashboard Design System - Cyberpunk Edition
+ * ==========================================================
  * 
- * A refined, healthcare-grade design system optimized for
- * regulatory environments (GCP/ICH compliant aesthetics).
- * 
- * Design Principles:
- * - Muted clinical tones for reduced eye strain
- * - Clear visual hierarchy for rapid cognitive scanning
- * - Consistent semantic color usage
- * - Accessible contrast ratios
+ * Refined for Dark Mode / Sci-Fi Aesthetic
  */
 
-/* ==========================================================================
-   CSS Variables - Clinical Color Palette
-   ========================================================================== */
-
 :root {
+  /* Using variables from index.css where possible, redefining others for compatibility */
+
   /* Primary Brand Colors */
-  --clinical-primary: #1a365d;
-  --clinical-primary-light: #2c5282;
-  --clinical-primary-lighter: #4a7ab8;
-  
-  /* Semantic Status Colors (Muted Clinical Tones) */
-  --status-healthy: #2f855a;
-  --status-healthy-bg: #f0fff4;
-  --status-healthy-border: #9ae6b4;
-  
-  --status-attention: #c05621;
-  --status-attention-bg: #fffaf0;
-  --status-attention-border: #fbd38d;
-  
-  --status-critical: #c53030;
-  --status-critical-bg: #fff5f5;
-  --status-critical-border: #feb2b2;
-  
-  --status-info: #2b6cb0;
-  --status-info-bg: #ebf8ff;
-  --status-info-border: #90cdf4;
-  
-  /* Neutral Grays */
-  --gray-50: #f7fafc;
-  --gray-100: #edf2f7;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e0;
-  --gray-400: #a0aec0;
-  --gray-500: #718096;
-  --gray-600: #4a5568;
-  --gray-700: #2d3748;
-  --gray-800: #1a202c;
-  --gray-900: #171923;
-  
+  --clinical-primary: #00f3ff;
+  /* Neon Cyan */
+  --clinical-primary-light: #0066ff;
+  --clinical-primary-lighter: #bc13fe;
+
+  /* Semantic Status Colors (Neon) */
+  --status-healthy: #00ff99;
+  --status-healthy-bg: rgba(0, 255, 153, 0.1);
+  --status-healthy-border: #00ff99;
+
+  --status-attention: #fcee0a;
+  --status-attention-bg: rgba(252, 238, 10, 0.1);
+  --status-attention-border: #fcee0a;
+
+  --status-critical: #ff3333;
+  --status-critical-bg: rgba(255, 51, 51, 0.1);
+  --status-critical-border: #ff3333;
+
+  --status-info: #00f3ff;
+  --status-info-bg: rgba(0, 243, 255, 0.1);
+  --status-info-border: #00f3ff;
+
+  /* Neutral Grays - Inverted for Dark Mode */
+  --gray-50: #050510;
+  --gray-100: #141423;
+  --gray-200: #1f1f33;
+  --gray-300: #2d2d44;
+  --gray-400: #718096;
+  --gray-500: #a0aec0;
+  --gray-600: #cbd5e0;
+  --gray-700: #e2e8f0;
+  --gray-800: #f7fafc;
+  --gray-900: #ffffff;
+
   /* Surface Colors */
-  --surface-primary: #ffffff;
-  --surface-secondary: #f7fafc;
-  --surface-elevated: #ffffff;
-  --surface-border: #e2e8f0;
-  
+  --surface-primary: rgba(20, 20, 35, 0.6);
+  /* Glass effect */
+  --surface-secondary: rgba(30, 30, 50, 0.6);
+  --surface-elevated: rgba(40, 40, 60, 0.9);
+  --surface-border: rgba(255, 255, 255, 0.1);
+
   /* Typography */
-  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-family-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
-  
+  --font-family-primary: 'Inter', sans-serif;
+  --font-family-mono: 'Rajdhani', monospace;
+
   /* Spacing Scale */
   --space-1: 4px;
   --space-2: 8px;
@@ -70,19 +63,20 @@
   --space-6: 24px;
   --space-8: 32px;
   --space-10: 40px;
-  
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  
+  --radius-lg: 16px;
+  /* Larger radius for modern feel */
+  --radius-xl: 24px;
+
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-base: 200ms ease;
@@ -95,7 +89,8 @@
 
 .clinical-dashboard {
   font-family: var(--font-family-primary);
-  background-color: var(--gray-50);
+  background-color: transparent;
+  /* Let body background show through */
   color: var(--gray-800);
   min-height: 100vh;
 }
@@ -119,18 +114,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--clinical-primary);
-  color: white;
+  background: rgba(0, 243, 255, 0.1);
+  color: var(--clinical-primary);
+  border: 1px solid var(--clinical-primary);
   border-radius: var(--radius-md);
   font-size: 14px;
+  box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
 }
 
 .section-header__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--clinical-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-family: var(--font-display);
 }
 
 /* ==========================================================================
@@ -138,8 +136,9 @@
    ========================================================================== */
 
 .at-risk-banner {
-  background: linear-gradient(135deg, var(--status-critical-bg) 0%, #fff 100%);
+  background: linear-gradient(135deg, rgba(255, 51, 51, 0.1) 0%, rgba(20, 20, 35, 0.8) 100%);
   border: 1px solid var(--status-critical-border);
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.1);
   border-left: 4px solid var(--status-critical);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
@@ -147,18 +146,21 @@
   display: flex;
   gap: var(--space-6);
   align-items: flex-start;
+  backdrop-filter: blur(10px);
 }
 
 .at-risk-banner--warning {
-  background: linear-gradient(135deg, var(--status-attention-bg) 0%, #fff 100%);
+  background: linear-gradient(135deg, rgba(252, 238, 10, 0.1) 0%, rgba(20, 20, 35, 0.8) 100%);
   border-color: var(--status-attention-border);
   border-left-color: var(--status-attention);
+  box-shadow: 0 0 15px rgba(252, 238, 10, 0.1);
 }
 
 .at-risk-banner--healthy {
-  background: linear-gradient(135deg, var(--status-healthy-bg) 0%, #fff 100%);
+  background: linear-gradient(135deg, rgba(0, 255, 153, 0.1) 0%, rgba(20, 20, 35, 0.8) 100%);
   border-color: var(--status-healthy-border);
   border-left-color: var(--status-healthy);
+  box-shadow: 0 0 15px rgba(0, 255, 153, 0.1);
 }
 
 .at-risk-banner__icon {
@@ -168,10 +170,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--status-critical);
-  color: white;
+  background: rgba(255, 51, 51, 0.2);
+  color: var(--status-critical);
+  border: 1px solid var(--status-critical);
   font-size: 24px;
   flex-shrink: 0;
+  box-shadow: 0 0 15px rgba(255, 51, 51, 0.3);
 }
 
 .at-risk-banner__content {
@@ -181,8 +185,10 @@
 .at-risk-banner__title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: #fff;
   margin-bottom: var(--space-2);
+  font-family: var(--font-display);
+  letter-spacing: 1px;
 }
 
 .at-risk-banner__items {
@@ -197,9 +203,11 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-md);
   font-size: 13px;
+  color: var(--gray-600);
 }
 
 .at-risk-item__value {
@@ -209,10 +217,12 @@
 
 .at-risk-item--critical .at-risk-item__value {
   color: var(--status-critical);
+  text-shadow: 0 0 5px var(--status-critical);
 }
 
 .at-risk-item--warning .at-risk-item__value {
   color: var(--status-attention);
+  text-shadow: 0 0 5px var(--status-attention);
 }
 
 /* ==========================================================================
@@ -231,6 +241,7 @@
 
 .kpi-card {
   background: var(--surface-primary);
+  backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   box-shadow: var(--shadow-card);
@@ -241,8 +252,9 @@
 }
 
 .kpi-card:hover {
-  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--surface-secondary);
 }
 
 .kpi-card::before {
@@ -251,23 +263,28 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 2px;
+  box-shadow: 0 0 10px currentColor;
 }
 
 .kpi-card--healthy::before {
   background: var(--status-healthy);
+  color: var(--status-healthy);
 }
 
 .kpi-card--warning::before {
   background: var(--status-attention);
+  color: var(--status-attention);
 }
 
 .kpi-card--critical::before {
   background: var(--status-critical);
+  color: var(--status-critical);
 }
 
 .kpi-card--info::before {
   background: var(--status-info);
+  color: var(--status-info);
 }
 
 .kpi-card__header {
@@ -282,7 +299,7 @@
   font-weight: 500;
   color: var(--gray-500);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 1px;
 }
 
 .kpi-card__status-icon {
@@ -298,37 +315,44 @@
 .kpi-card__status-icon--healthy {
   background: var(--status-healthy-bg);
   color: var(--status-healthy);
+  box-shadow: 0 0 5px var(--status-healthy);
 }
 
 .kpi-card__status-icon--warning {
   background: var(--status-attention-bg);
   color: var(--status-attention);
+  box-shadow: 0 0 5px var(--status-attention);
 }
 
 .kpi-card__status-icon--critical {
   background: var(--status-critical-bg);
   color: var(--status-critical);
+  box-shadow: 0 0 5px var(--status-critical);
 }
 
 .kpi-card__value {
   font-size: 32px;
   font-weight: 700;
-  color: var(--gray-800);
+  color: #fff;
   line-height: 1;
   margin-bottom: var(--space-2);
   font-feature-settings: 'tnum';
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 .kpi-card__value--healthy {
   color: var(--status-healthy);
+  text-shadow: 0 0 10px var(--status-healthy);
 }
 
 .kpi-card__value--warning {
   color: var(--status-attention);
+  text-shadow: 0 0 10px var(--status-attention);
 }
 
 .kpi-card__value--critical {
   color: var(--status-critical);
+  text-shadow: 0 0 10px var(--status-critical);
 }
 
 .kpi-card__trend {
@@ -363,6 +387,7 @@
 
 .clinical-card {
   background: var(--surface-primary);
+  backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   border: 1px solid var(--surface-border);
@@ -383,14 +408,18 @@
 .clinical-card__title {
   font-size: 14px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--clinical-primary);
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-display);
 }
 
 .clinical-card__title-icon {
   color: var(--clinical-primary);
+  filter: drop-shadow(0 0 5px var(--clinical-primary));
 }
 
 .clinical-card__actions {
@@ -403,6 +432,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  color: var(--gray-700);
 }
 
 /* ==========================================================================
@@ -411,7 +441,7 @@
 
 .clinical-progress {
   height: 8px;
-  background: var(--gray-100);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -420,18 +450,22 @@
   height: 100%;
   border-radius: var(--radius-sm);
   transition: width var(--transition-base);
+  box-shadow: 0 0 10px currentColor;
 }
 
 .clinical-progress__bar--healthy {
   background: var(--status-healthy);
+  color: var(--status-healthy);
 }
 
 .clinical-progress__bar--warning {
   background: var(--status-attention);
+  color: var(--status-attention);
 }
 
 .clinical-progress__bar--critical {
   background: var(--status-critical);
+  color: var(--status-critical);
 }
 
 /* ==========================================================================
@@ -443,7 +477,7 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--surface-border);
 }
 
 .metric-row:last-child {
@@ -461,7 +495,7 @@
 .metric-row__value {
   font-size: 14px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: #fff;
   font-feature-settings: 'tnum';
 }
 
@@ -470,21 +504,29 @@
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .metric-row__badge--healthy {
   background: var(--status-healthy-bg);
   color: var(--status-healthy);
+  border-color: var(--status-healthy);
+  box-shadow: 0 0 5px var(--status-healthy-bg);
 }
 
 .metric-row__badge--warning {
   background: var(--status-attention-bg);
   color: var(--status-attention);
+  border-color: var(--status-attention);
+  box-shadow: 0 0 5px var(--status-attention-bg);
 }
 
 .metric-row__badge--critical {
   background: var(--status-critical-bg);
   color: var(--status-critical);
+  border-color: var(--status-critical);
+  box-shadow: 0 0 5px var(--status-critical-bg);
 }
 
 /* ==========================================================================
@@ -499,21 +541,23 @@
 .query-aging__bucket {
   flex: 1;
   padding: var(--space-3);
-  background: var(--gray-50);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md);
   text-align: center;
   transition: all var(--transition-fast);
   cursor: pointer;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
 }
 
 .query-aging__bucket:hover {
-  background: var(--gray-100);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .query-aging__bucket--sla-breach {
   background: var(--status-critical-bg);
   border-color: var(--status-critical-border);
+  box-shadow: 0 0 10px var(--status-critical-bg);
 }
 
 .query-aging__bucket-label {
@@ -526,23 +570,28 @@
 .query-aging__bucket-value {
   font-size: 18px;
   font-weight: 700;
-  color: var(--gray-800);
+  color: #fff;
 }
 
 .query-aging__bucket--0-7 .query-aging__bucket-value {
   color: var(--status-healthy);
+  text-shadow: 0 0 5px var(--status-healthy);
 }
 
 .query-aging__bucket--8-14 .query-aging__bucket-value {
   color: var(--status-attention);
+  text-shadow: 0 0 5px var(--status-attention);
 }
 
 .query-aging__bucket--15-30 .query-aging__bucket-value {
   color: #dd6b20;
+  /* Orange */
+  text-shadow: 0 0 5px #dd6b20;
 }
 
 .query-aging__bucket--30plus .query-aging__bucket-value {
   color: var(--status-critical);
+  text-shadow: 0 0 5px var(--status-critical);
 }
 
 /* ==========================================================================
@@ -557,9 +606,10 @@
 
 .stat-mini {
   padding: var(--space-3);
-  background: var(--gray-50);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md);
   text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .stat-mini__label {
@@ -573,6 +623,7 @@
   font-size: 20px;
   font-weight: 700;
   font-feature-settings: 'tnum';
+  color: #fff;
 }
 
 /* ==========================================================================
@@ -580,11 +631,14 @@
    ========================================================================== */
 
 .clinical-tooltip {
-  background: var(--gray-800) !important;
+  background: rgba(10, 10, 20, 0.95) !important;
+  border: 1px solid var(--clinical-primary) !important;
+  color: #fff !important;
+  backdrop-filter: blur(4px);
   border-radius: var(--radius-md) !important;
   padding: var(--space-2) var(--space-3) !important;
   font-size: 12px !important;
-  box-shadow: var(--shadow-lg) !important;
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.2) !important;
 }
 
 /* ==========================================================================
@@ -593,6 +647,7 @@
 
 .global-filters {
   background: var(--surface-primary);
+  backdrop-filter: blur(12px);
   border-radius: var(--radius-lg);
   padding: var(--space-4) var(--space-5);
   margin-bottom: var(--space-6);
@@ -604,19 +659,92 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  border: 1px solid var(--surface-border);
+}
+
+.global-filters__applied {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.filter-chip {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  backdrop-filter: blur(4px);
+}
+
+.connection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(5, 5, 10, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  font-size: 12px;
+}
+
+.connection-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-critical);
+}
+
+.connection-pill--connected {
+  border-color: var(--status-healthy);
+  color: var(--status-healthy);
+  box-shadow: 0 0 5px var(--status-healthy-bg);
+}
+
+.connection-pill--connected .connection-pill__dot {
+  background: var(--status-healthy);
+  animation: pulse 2s infinite;
+  box-shadow: 0 0 5px var(--status-healthy);
+}
+
+.connection-pill--retrying .connection-pill__dot,
+.connection-pill--waiting_for_backend .connection-pill__dot {
+  background: var(--status-attention);
+}
+
+.connection-pill--failed {
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+.connection-pill--failed .connection-pill__dot {
+  background: var(--status-critical);
+  box-shadow: 0 0 5px var(--status-critical);
+}
+
+/* Focus visibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--clinical-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 10px var(--clinical-primary);
 }
 
 .global-filters__label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--gray-600);
+  color: var(--gray-500);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .global-filters__divider {
   width: 1px;
   height: 32px;
-  background: var(--gray-200);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* ==========================================================================
@@ -628,6 +756,7 @@
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -642,9 +771,11 @@
   0% {
     box-shadow: 0 0 0 0 rgba(197, 48, 48, 0.4);
   }
+
   70% {
     box-shadow: 0 0 0 10px rgba(197, 48, 48, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(197, 48, 48, 0);
   }
@@ -668,7 +799,7 @@
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .at-risk-banner {
     flex-direction: column;
   }
@@ -678,11 +809,11 @@
   .kpi-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .query-aging {
     flex-wrap: wrap;
   }
-  
+
   .query-aging__bucket {
     flex: 1 1 calc(50% - var(--space-2));
   }

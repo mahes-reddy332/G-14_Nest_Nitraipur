@@ -26,6 +26,13 @@ class ClinicalDataIngester:
     """
     
     def __init__(self, base_path: Path):
+        try:
+            import openpyxl  # noqa: F401
+        except Exception as exc:
+            raise RuntimeError(
+                "openpyxl is required to read .xlsx source files. "
+                "Install it with: pip install openpyxl"
+            ) from exc
         self.base_path = Path(base_path)
         self.studies: Dict[str, Dict[str, pd.DataFrame]] = {}
         self.file_patterns = {
@@ -70,65 +77,60 @@ class ClinicalDataIngester:
         column to each standard name.
         """
         new_columns = {}
-        assigned_standards = set()  # Track which standard names have been assigned
+        assigned_standards = set()
         
-        for standard_name, possible_names in column_map.items():
-            # Skip if this standard name has already been assigned
-            if standard_name in assigned_standards:
-                continue
-            # Skip if standard name already exists as a column
-            if standard_name in df.columns:
-                assigned_standards.add(standard_name)
+        for col in df.columns:
+            # Skip if we already mapped this column (though unlikely with unique check)
+            if col in new_columns:
                 continue
                 
-            for col in df.columns:
-                # Skip if already mapped
-                if col in new_columns:
-                    continue
-                # Skip if column is already the standard name
-                if col == standard_name:
-                    assigned_standards.add(standard_name)
-                    break
+            # Try to match against standards
+            col_clean = str(col).strip().replace('\n', ' ')
+            matched = False
+            
+            for standard_name, possible_names in column_map.items():
+                if standard_name in assigned_standards:
+                    continue # Already found a source for this standard column
                     
-                col_clean = str(col).strip().replace('\n', ' ')
                 for possible in possible_names:
-                    # Exact match or word boundary match to avoid "coded" matching "uncoded"
+                    if not isinstance(possible, str): continue
+                    
+                    # specific check for exact match or word boundary
                     col_lower = col_clean.lower()
                     possible_lower = possible.lower()
                     
-                    # Check for exact match first
+                    # Exact match
                     if col_lower == possible_lower:
                         new_columns[col] = standard_name
                         assigned_standards.add(standard_name)
+                        matched = True
                         break
-                    # Check for presence but avoid substring issues (uncoded vs coded, pages vs missing_pages)
-                    elif possible_lower in col_lower:
-                        # Verify it's not a substring of another word
+                        
+                    # Containment with boundary check
+                    if possible_lower in col_lower:
                         idx = col_lower.find(possible_lower)
                         if idx >= 0:
-                            # Check if it's at true word boundary (not underscore)
+                            # Boundry checks
                             before = col_lower[idx-1] if idx > 0 else ' '
                             after = col_lower[idx+len(possible_lower)] if idx+len(possible_lower) < len(col_lower) else ' '
-                            # Don't count underscore as word boundary for standardized column names
-                            is_valid_before = before == ' ' or before == '\t' or before == '-'
-                            is_valid_after = after == ' ' or after == '\t' or after == '-'
-                            # If at start of string or end of string, it's valid
-                            if idx == 0:
-                                is_valid_before = True
-                            if idx + len(possible_lower) == len(col_lower):
-                                is_valid_after = True
+                            
+                            is_valid_before = before in [' ', '\t', '-', '_']
+                            is_valid_after = after in [' ', '\t', '-', '_']
+                            
+                            if idx == 0: is_valid_before = True
+                            if idx + len(possible_lower) == len(col_lower): is_valid_after = True
+                            
                             if is_valid_before and is_valid_after:
                                 new_columns[col] = standard_name
                                 assigned_standards.add(standard_name)
+                                matched = True
                                 break
-                
-                # Break out of column loop if we found a match for this standard_name
-                if standard_name in assigned_standards:
-                    break
+                if matched: break
         
+        # Rename matched columns
         df = df.rename(columns=new_columns)
         
-        # Final safety: remove any duplicate columns that might still exist
+        # Remove duplicates
         df = df.loc[:, ~df.columns.duplicated()]
         
         return df

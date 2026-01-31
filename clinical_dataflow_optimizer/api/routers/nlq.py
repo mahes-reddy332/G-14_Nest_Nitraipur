@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from ..services.nlq_service import NLQService
+from core.security import ValidationError
 
 router = APIRouter()
 
@@ -37,6 +38,8 @@ async def process_nlq_query(
     try:
         result = await nlq_service.process_query(query.query, query.context)
         return NLQResponse(**result)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"NLQ processing failed: {str(e)}")
 

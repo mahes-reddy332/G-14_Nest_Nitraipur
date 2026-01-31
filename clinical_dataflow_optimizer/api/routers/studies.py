@@ -18,6 +18,7 @@ router = APIRouter()
 
 class StudySummary(BaseModel):
     study_id: str
+    name: str
     study_name: str
     total_patients: int
     total_sites: int
@@ -83,11 +84,17 @@ class RegionBreakdown(BaseModel):
 async def get_all_studies():
     """Get summary of all studies"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         studies = await service.get_all_studies()
-        return [StudySummary(**study) for study in studies]
+        normalized = []
+        for study in studies:
+            if "name" not in study:
+                study["name"] = study.get("study_name") or study.get("study_id")
+            if "study_name" not in study:
+                study["study_name"] = study.get("name") or study.get("study_id")
+            normalized.append(StudySummary(**study))
+        return normalized
     except Exception as e:
         logger.error(f"Error getting studies: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -97,9 +104,8 @@ async def get_all_studies():
 async def get_study_detail(study_id: str):
     """Get detailed information for a specific study"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         study = await service.get_study_detail(study_id)
         if not study:
             raise HTTPException(status_code=404, detail=f"Study {study_id} not found")
@@ -115,11 +121,8 @@ async def get_study_detail(study_id: str):
 async def get_study_metrics(study_id: str):
     """Get metrics for a specific study"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         metrics = await service.get_study_metrics(study_id)
         return StudyMetrics(**metrics)
     except Exception as e:
@@ -131,9 +134,8 @@ async def get_study_metrics(study_id: str):
 async def get_study_regions(study_id: str):
     """Get region breakdown for a study"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         regions = await service.get_study_regions(study_id)
         return [RegionBreakdown(**r) for r in regions]
     except Exception as e:
@@ -149,11 +151,8 @@ async def get_study_trends(
 ):
     """Get trend data for a specific metric"""
     try:
-        from api.services.metrics_service import MetricsService
-        from api.services.data_service import ClinicalDataService
-        data_service = ClinicalDataService()
-        await data_service.initialize()
-        service = MetricsService(data_service)
+        from api.config import get_initialized_metrics_service
+        service = await get_initialized_metrics_service()
         trends = await service.get_metric_trends(study_id, metric, days)
         return {
             "success": True,
@@ -171,9 +170,8 @@ async def get_study_trends(
 async def get_study_risk_assessment(study_id: str):
     """Get risk assessment for a study"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         assessment = await service.get_risk_assessment(study_id)
         return {
             "success": True,
@@ -192,9 +190,8 @@ async def get_study_heatmap(
 ):
     """Get heatmap data for visualization"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         heatmap = await service.get_heatmap_data(study_id, metric)
         return {
             "success": True,
@@ -219,9 +216,8 @@ class SourceFile(BaseModel):
 async def get_study_source_files(study_id: str):
     """Get list of processed source files for a study"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         files = await service.get_study_source_files(study_id)
         return [SourceFile(**f) for f in files]
     except Exception as e:
@@ -233,9 +229,8 @@ async def get_study_source_files(study_id: str):
 async def get_all_source_files():
     """Get processed source files for all studies"""
     try:
-        from api.services.data_service import ClinicalDataService
-        service = ClinicalDataService()
-        await service.initialize()
+        from api.config import get_initialized_data_service
+        service = await get_initialized_data_service()
         files = await service.get_all_source_files()
         return {
             "success": True,

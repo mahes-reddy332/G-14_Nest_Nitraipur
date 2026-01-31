@@ -8,24 +8,14 @@ interface HeatmapCellProps {
   row: string
   col: string
   metric: string
+  getColor: (value: number) => string
+  getTextColor: (value: number) => string
+  formatValue: (value: number) => string
 }
 
-function HeatmapCell({ value, row, col, metric }: HeatmapCellProps) {
-  // Color scale from red to green
-  const getColor = (val: number) => {
-    if (val >= 80) return '#52c41a'
-    if (val >= 60) return '#95de64'
-    if (val >= 40) return '#fadb14'
-    if (val >= 20) return '#ffa940'
-    return '#ff4d4f'
-  }
-
-  const getTextColor = (val: number) => {
-    return val >= 40 && val <= 60 ? '#262626' : '#fff'
-  }
-
+function HeatmapCell({ value, row, col, metric, getColor, getTextColor, formatValue }: HeatmapCellProps) {
   return (
-    <Tooltip title={`${row} - ${col}: ${value.toFixed(1)}%`}>
+    <Tooltip title={`${row} - ${col}: ${formatValue(value)}`}>
       <div
         className="heatmap-cell"
         style={{
@@ -35,7 +25,7 @@ function HeatmapCell({ value, row, col, metric }: HeatmapCellProps) {
           height: 32,
         }}
       >
-        {value.toFixed(0)}
+        {Number.isFinite(value) ? value.toFixed(0) : '—'}
       </div>
     </Tooltip>
   )
@@ -62,6 +52,28 @@ export default function DataHeatmap({ metric = 'dqi', title = 'Site DQI Heatmap'
   const rows = Array.isArray(heatmapData.rows) ? heatmapData.rows : []
   const columns = Array.isArray(heatmapData.columns) ? heatmapData.columns : []
   const values = Array.isArray(heatmapData.values) ? heatmapData.values : []
+  const flatValues = values.flat().filter((val) => Number.isFinite(val)) as number[]
+  const minValue = flatValues.length ? Math.min(...flatValues) : 0
+  const maxValue = flatValues.length ? Math.max(...flatValues) : 0
+  const colors = ['#ff4d4f', '#ffa940', '#fadb14', '#95de64', '#52c41a']
+  const isPercentMetric = ['dqi', 'dqi_score', 'data_quality', 'cleanliness', 'clean_rate', 'risk'].includes(metric)
+  const formatValue = (val: number) => {
+    if (!Number.isFinite(val)) return 'N/A'
+    return isPercentMetric ? `${val.toFixed(1)}%` : val.toFixed(1)
+  }
+  const getColor = (val: number) => {
+    if (!Number.isFinite(val)) return '#f0f0f0'
+    if (maxValue === minValue) return colors[2]
+    const ratio = (val - minValue) / (maxValue - minValue)
+    const index = Math.max(0, Math.min(colors.length - 1, Math.floor(ratio * (colors.length - 1))))
+    return colors[index]
+  }
+  const getTextColor = (val: number) => {
+    if (!Number.isFinite(val)) return '#8c8c8c'
+    if (maxValue === minValue) return '#262626'
+    const ratio = (val - minValue) / (maxValue - minValue)
+    return ratio >= 0.35 && ratio <= 0.65 ? '#262626' : '#fff'
+  }
 
   if (rows.length === 0 || columns.length === 0) {
     return (
@@ -114,6 +126,9 @@ export default function DataHeatmap({ metric = 'dqi', title = 'Site DQI Heatmap'
                       row={row}
                       col={col}
                       metric={metric}
+                      getColor={getColor}
+                      getTextColor={getTextColor}
+                      formatValue={formatValue}
                     />
                   </td>
                 ))}
@@ -133,7 +148,7 @@ export default function DataHeatmap({ metric = 'dqi', title = 'Site DQI Heatmap'
           gap: 8,
         }}
       >
-        <span style={{ fontSize: 11, color: '#8c8c8c' }}>Low</span>
+        <span style={{ fontSize: 11, color: '#8c8c8c' }}>{formatValue(minValue)}</span>
         <div
           style={{
             display: 'flex',
@@ -142,11 +157,11 @@ export default function DataHeatmap({ metric = 'dqi', title = 'Site DQI Heatmap'
             overflow: 'hidden',
           }}
         >
-          {['#ff4d4f', '#ffa940', '#fadb14', '#95de64', '#52c41a'].map((color) => (
+          {colors.map((color) => (
             <div key={color} style={{ width: 24, backgroundColor: color }} />
           ))}
         </div>
-        <span style={{ fontSize: 11, color: '#8c8c8c' }}>High</span>
+        <span style={{ fontSize: 11, color: '#8c8c8c' }}>{formatValue(maxValue)}</span>
       </div>
     </Card>
   )
