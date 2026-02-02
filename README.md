@@ -14,6 +14,20 @@ Before setting up the project, ensure you have the following installed:
 - **Node.js**: v18 or higher (LTS recommended)
 - **Git**: For version control
 
+
+![SAVE_20260202_105656](https://github.com/user-attachments/assets/53e98d71-5ae6-420c-aa6b-06fa39ec619d)
+![SAVE_20260202_105703](https://github.com/user-attachments/assets/fb118936-2370-4698-a341-e977c68fde91)
+![SAVE_20260202_105709](https://github.com/user-attachments/assets/d6d6b37b-bbbc-4de1-b252-52b541610aa1)
+![SAVE_20260202_105714](https://github.com/user-attachments/assets/e34b0863-19f8-495d-bef1-e61ec6519684)
+![SAVE_20260202_105719](https://github.com/user-attachments/assets/ab255077-620b-4a20-93b4-81147a1e3988)
+![SAVE_20260202_105726](https://github.com/user-attachments/assets/41d28895-8209-4c7a-b4a4-d63fe3e69a5a)
+![SAVE_20260202_105730](https://github.com/user-attachments/assets/0ff78a42-ad68-43e9-8ec8-f9236ac1c70f)
+![SAVE_20260202_105735](https://github.com/user-attachments/assets/f2a2c232-324b-4edb-bceb-707360878d52)
+![SAVE_20260202_105741](https://github.com/user-attachments/assets/8ac37a59-5e8d-4774-a4ac-0e317f7372f3)
+![SAVE_20260202_105745](https://github.com/user-attachments/assets/86fde097-4fc3-48cc-b3cb-82f0dea4bc02)
+![SAVE_20260202_105749](https://github.com/user-attachments/assets/75c412d8-f91c-4a2e-8ab6-7eaabb47cc70)
+
+
 ## Project Structure
 
 - `clinical_dataflow_optimizer/api` - Backend REST API (FastAPI)
